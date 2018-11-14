@@ -130,7 +130,7 @@ func createStaticPodFiles(manifestDir string, cfg *kubeadmapi.InitConfiguration,
 			return fmt.Errorf("failed to create static pod manifest file for %q: %v", componentName, err)
 		}
 
-		fmt.Printf("[controlplane] wrote Static Pod manifest for component %s to %q\n", componentName, kubeadmconstants.GetStaticPodFilepath(componentName, manifestDir))
+		fmt.Printf("[controlplane] wrote Static Pod manifest %s to %q\n", componentName, kubeadmconstants.GetStaticPodFilepath(componentName, manifestDir))
 	}
 
 	return nil
@@ -138,10 +138,19 @@ func createStaticPodFiles(manifestDir string, cfg *kubeadmapi.InitConfiguration,
 
 // getAPIServerCommand builds the right API server command from the given config object and version
 func getAPIServerCommand(cfg *kubeadmapi.InitConfiguration) []string {
+	var insecureBindAddress string
+	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
+		//insecureBindAddress = "::1"
+		//TODO: FIXME when ipv6 only
+		insecureBindAddress = "127.0.0.1"
+	} else {
+		insecureBindAddress = "127.0.0.1"
+	}
 	defaultArguments := map[string]string{
 		"advertise-address":               cfg.APIEndpoint.AdvertiseAddress,
-		"insecure-port":                   "0",
-		"enable-admission-plugins":        "NodeRestriction",
+		"insecure-port":                   "8080",
+		"insecure-bind-address":           insecureBindAddress,
+		"enable-admission-plugins":        "NodeRestriction,PodSecurityPolicy",
 		"service-cluster-ip-range":        cfg.Networking.ServiceSubnet,
 		"service-account-key-file":        filepath.Join(cfg.CertificatesDir, kubeadmconstants.ServiceAccountPublicKeyName),
 		"client-ca-file":                  filepath.Join(cfg.CertificatesDir, kubeadmconstants.CACertName),
@@ -149,10 +158,11 @@ func getAPIServerCommand(cfg *kubeadmapi.InitConfiguration) []string {
 		"tls-private-key-file":            filepath.Join(cfg.CertificatesDir, kubeadmconstants.APIServerKeyName),
 		"kubelet-client-certificate":      filepath.Join(cfg.CertificatesDir, kubeadmconstants.APIServerKubeletClientCertName),
 		"kubelet-client-key":              filepath.Join(cfg.CertificatesDir, kubeadmconstants.APIServerKubeletClientKeyName),
+		"token-auth-file":                 filepath.Join(cfg.CertificatesDir, "tokens.csv"),
 		"enable-bootstrap-token-auth":     "true",
 		"secure-port":                     fmt.Sprintf("%d", cfg.APIEndpoint.BindPort),
 		"allow-privileged":                "true",
-		"kubelet-preferred-address-types": "InternalIP,ExternalIP,Hostname",
+		"kubelet-preferred-address-types": "Hostname,InternalIP,ExternalIP",
 		// add options to configure the front proxy.  Without the generated client cert, this will never be useable
 		// so add it unconditionally with recommended values
 		"requestheader-username-headers":     "X-Remote-User",
@@ -180,7 +190,7 @@ func getAPIServerCommand(cfg *kubeadmapi.InitConfiguration) []string {
 		}
 	} else {
 		// Default to etcd static pod on localhost
-		defaultArguments["etcd-servers"] = "https://127.0.0.1:2379"
+		defaultArguments["etcd-servers"] = fmt.Sprintf("https://%s:%s",cfg.APIEndpoint.AdvertiseAddress,"2379")
 		defaultArguments["etcd-cafile"] = filepath.Join(cfg.CertificatesDir, kubeadmconstants.EtcdCACertName)
 		defaultArguments["etcd-certfile"] = filepath.Join(cfg.CertificatesDir, kubeadmconstants.APIServerEtcdClientCertName)
 		defaultArguments["etcd-keyfile"] = filepath.Join(cfg.CertificatesDir, kubeadmconstants.APIServerEtcdClientKeyName)
@@ -282,8 +292,16 @@ func calcNodeCidrSize(podSubnet string) string {
 
 // getControllerManagerCommand builds the right controller manager command from the given config object and version
 func getControllerManagerCommand(cfg *kubeadmapi.InitConfiguration, k8sVersion *version.Version) []string {
+	var address string
+	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
+		//address = "::1"
+		//TODO: FIXME when ipv6 only
+		address = "127.0.0.1"
+	} else {
+		address = "127.0.0.1"
+	}
 	defaultArguments := map[string]string{
-		"address":                          "127.0.0.1",
+		"address":                          address,
 		"leader-elect":                     "true",
 		"kubeconfig":                       filepath.Join(kubeadmconstants.KubernetesDir, kubeadmconstants.ControllerManagerKubeConfigFileName),
 		"root-ca-file":                     filepath.Join(cfg.CertificatesDir, kubeadmconstants.CACertName),
@@ -326,9 +344,18 @@ func getControllerManagerCommand(cfg *kubeadmapi.InitConfiguration, k8sVersion *
 
 // getSchedulerCommand builds the right scheduler command from the given config object and version
 func getSchedulerCommand(cfg *kubeadmapi.InitConfiguration) []string {
+	var address string
+	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
+		//address = "::1"
+		//TODO: FIXME when ipv6 only
+		address = "127.0.0.1"
+	} else {
+		address = "127.0.0.1"
+	}
 	defaultArguments := map[string]string{
-		"address":      "127.0.0.1",
-		"leader-elect": "true",
+		"address":          address,
+		"leader-elect":     "true",
+		"policy-configmap": "kube-scheduler",
 		"kubeconfig":   filepath.Join(kubeadmconstants.KubernetesDir, kubeadmconstants.SchedulerKubeConfigFileName),
 	}
 

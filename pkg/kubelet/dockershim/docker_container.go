@@ -255,6 +255,12 @@ func (ds *dockerService) StartContainer(_ context.Context, r *runtimeapi.StartCo
 		err = transformStartContainerError(err)
 		return nil, fmt.Errorf("failed to start container %q: %v", r.ContainerId, err)
 	}
+//  http://jira.tenxcloud.com/browse/KAN-1333
+//  https://github.com/kubernetes/kubernetes/pull/70980
+//	err = blkio.UpdateBlkio(r.ContainerId, ds.client)
+//	if err != nil {
+//		return nil, fmt.Errorf("failed to set blkio when the container %q starts, %v", r.ContainerId, err)
+//	}
 
 	return &runtimeapi.StartContainerResponse{}, nil
 }

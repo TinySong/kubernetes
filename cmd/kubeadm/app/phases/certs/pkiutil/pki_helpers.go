@@ -277,6 +277,7 @@ func GetAPIServerAltNames(cfg *kubeadmapi.InitConfiguration) (*certutil.AltNames
 			"kubernetes",
 			"kubernetes.default",
 			"kubernetes.default.svc",
+			fmt.Sprintf("kubernetes.%s", cfg.Networking.DNSDomain),
 			fmt.Sprintf("kubernetes.default.svc.%s", cfg.Networking.DNSDomain),
 		},
 		IPs: []net.IP{
@@ -308,10 +309,16 @@ func GetAPIServerAltNames(cfg *kubeadmapi.InitConfiguration) (*certutil.AltNames
 // Hostname and `API.AdvertiseAddress` are excluded since etcd does not listen on this interface by default.
 // The user can override the listen address with `Etcd.ExtraArgs` and add SANs with `Etcd.ServerCertSANs`.
 func GetEtcdAltNames(cfg *kubeadmapi.InitConfiguration) (*certutil.AltNames, error) {
+	// advertise address
+	advertiseAddress := net.ParseIP(cfg.APIEndpoint.AdvertiseAddress)
+	if advertiseAddress == nil {
+		return nil, fmt.Errorf("error parsing APIEndpoint AdvertiseAddress %v: is not a valid textual representation of an IP address", cfg.APIEndpoint.AdvertiseAddress)
+	}
+
 	// create AltNames with defaults DNSNames/IPs
 	altNames := &certutil.AltNames{
-		DNSNames: []string{cfg.NodeRegistration.Name, "localhost"},
-		IPs:      []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		DNSNames: []string{cfg.NodeRegistration.Name, "localhost",fmt.Sprintf("kubernetes.default.svc.%s", cfg.Networking.DNSDomain),fmt.Sprintf("kubernetes.%s", cfg.Networking.DNSDomain)},
+		IPs:      []net.IP{advertiseAddress, net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
 
 	if cfg.Etcd.Local != nil {

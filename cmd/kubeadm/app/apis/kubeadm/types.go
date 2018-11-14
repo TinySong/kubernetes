@@ -43,13 +43,13 @@ type InitConfiguration struct {
 	ClusterConfiguration `json:",inline"`
 
 	// BootstrapTokens is respected at `kubeadm init` time and describes a set of Bootstrap Tokens to create.
-	BootstrapTokens []BootstrapToken
+	//BootstrapTokens []BootstrapToken
 
 	// NodeRegistration holds fields that relate to registering the new master node to the cluster
 	NodeRegistration NodeRegistrationOptions
 
 	// APIEndpoint represents the endpoint of the instance of the API server to be deployed on this node.
-	APIEndpoint APIEndpoint
+	//APIEndpoint APIEndpoint
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -133,6 +133,23 @@ type ClusterConfiguration struct {
 
 	// The cluster name
 	ClusterName string
+
+	// BootstrapTokens is respected at `kubeadm init` time and describes a set of Bootstrap Tokens to create.
+	BootstrapTokens []BootstrapToken
+
+	// APIEndpoint represents the endpoint of the instance of the API server to be deployed on this node.
+	APIEndpoint APIEndpoint
+
+	DiscoveryTokenAPIServers []string
+
+	// TenxCloud Enterprise Server Address
+	ApiServerUrl             string
+
+	// Credential to access TenxCloud Enterprise Server
+	ApiServerCredential      string
+
+	// TenxCloud Enterprise Kubernetes Cluster ID
+	ClusterId                string
 }
 
 // ComponentConfigs holds known internal ComponentConfig types for other components
@@ -201,6 +218,10 @@ type Networking struct {
 	PodSubnet string
 	// DNSDomain is the dns domain used by k8s services. Defaults to "cluster.local".
 	DNSDomain string
+    // Network Plugin: calico ....
+	Plugin    string
+    // Network Mode: ipv4, ipv6, dual-stack
+	Mode      string
 }
 
 // BootstrapToken describes one bootstrap token, stored as a Secret in the cluster

@@ -3679,6 +3679,18 @@ const (
 	// Local ephemeral storage, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
 	// The resource name for ResourceEphemeralStorage is alpha and it can change across releases.
 	ResourceEphemeralStorage ResourceName = "ephemeral-storage"
+	// The number of read operations a device can perform, in bytes.
+	// Limit read rate (bytes per second) from a device
+	ResourceStorageReadBandwidth ResourceName = "storage-read-bandwidth"
+	// The number of write operations a device can perform, in bytes.
+	// Limit write rate (bytes per second) to a device
+	ResourceStorageWriteBandwidth ResourceName = "storage-write-bandwidth"
+	// The number of read operations a device can perform.
+	// Limit read rate (IO per second) from a device
+	ResourceStorageReadIOps ResourceName = "storage-read-iops"
+	// The number of write operations a device can perform.
+	// Limit write rate (IO per second) to a device
+	ResourceStorageWriteIOps ResourceName = "storage-write-iops"
 )
 
 const (

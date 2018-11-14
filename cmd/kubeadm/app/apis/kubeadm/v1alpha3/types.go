@@ -40,13 +40,13 @@ type InitConfiguration struct {
 
 	// BootstrapTokens is respected at `kubeadm init` time and describes a set of Bootstrap Tokens to create.
 	// This information IS NOT uploaded to the kubeadm cluster configmap, partly because of its sensitive nature
-	BootstrapTokens []BootstrapToken `json:"bootstrapTokens,omitempty"`
+	//BootstrapTokens []BootstrapToken `json:"bootstrapTokens,omitempty"`
 
 	// NodeRegistration holds fields that relate to registering the new master node to the cluster
 	NodeRegistration NodeRegistrationOptions `json:"nodeRegistration,omitempty"`
 
 	// APIEndpoint represents the endpoint of the instance of the API server to be deployed on this node.
-	APIEndpoint APIEndpoint `json:"apiEndpoint,omitempty"`
+	//APIEndpoint APIEndpoint `json:"apiEndpoint,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -120,6 +120,27 @@ type ClusterConfiguration struct {
 
 	// The cluster name
 	ClusterName string `json:"clusterName,omitempty"`
+
+	// BootstrapTokens is respected at `kubeadm init` time and describes a set of Bootstrap Tokens to create.
+	// This information IS NOT uploaded to the kubeadm cluster configmap, partly because of its sensitive nature
+	BootstrapTokens []BootstrapToken `json:"bootstrapTokens,omitempty"`
+
+	// APIEndpoint represents the endpoint of the instance of the API server to be deployed on this node.
+	APIEndpoint APIEndpoint
+
+	// DiscoveryTokenAPIServers is a set of IPs to API servers from which info
+	// will be fetched. Currently we only pay attention to one API server but
+	// hope to support >1 in the future.
+	DiscoveryTokenAPIServers []string `json:"discoveryTokenAPIServers,omitempty"`
+
+	// TenxCloud Enterprise Server Address
+	ApiServerUrl             string               `json:"apiServerUrl"`
+
+	// Credential to access TenxCloud Enterprise Server
+	ApiServerCredential      string               `json:"apiServerCredential"`
+
+	// TenxCloud Enterprise Kubernetes Cluster ID
+	ClusterId                string               `json:"clusterId"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -174,6 +195,11 @@ type Networking struct {
 	PodSubnet string `json:"podSubnet"`
 	// DNSDomain is the dns domain used by k8s services. Defaults to "cluster.local".
 	DNSDomain string `json:"dnsDomain"`
+
+	Plugin    string `json:"plugin"`
+
+	// Network Mode: ipv4, ipv6, dual-stack
+	Mode      string `json:"mode"`
 }
 
 // BootstrapToken describes one bootstrap token, stored as a Secret in the cluster

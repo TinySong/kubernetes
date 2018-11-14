@@ -283,7 +283,7 @@ func NewCmdKubeletConfigDownload() *cobra.Command {
 		Long:    kubeletConfigDownloadLongDesc,
 		Example: kubeletConfigDownloadExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			kubeletVersion, err := getKubeletVersion(kubeletVersionStr)
+			kubeletVersion, err := GetKubeletVersion(kubeletVersionStr)
 			kubeadmutil.CheckErr(err)
 
 			client, err := kubeconfigutil.ClientSetFromFile(kubeConfigFile)
@@ -299,7 +299,7 @@ func NewCmdKubeletConfigDownload() *cobra.Command {
 	return cmd
 }
 
-func getKubeletVersion(kubeletVersionStr string) (*version.Version, error) {
+func GetKubeletVersion(kubeletVersionStr string) (*version.Version, error) {
 	if len(kubeletVersionStr) > 0 {
 		return version.ParseSemantic(kubeletVersionStr)
 	}

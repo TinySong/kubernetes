@@ -91,6 +91,15 @@ spec:
         - mountPath: /lib/modules
           name: lib-modules
           readOnly: true
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /etc/hosts
+          name: hosts
+          readOnly: true
+        - mountPath: /etc/resolv.conf
+          name: etc-resolv-conf
+          readOnly: true
       hostNetwork: true
       serviceAccountName: kube-proxy
       volumes:
@@ -104,6 +113,18 @@ spec:
       - name: lib-modules
         hostPath:
           path: /lib/modules
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+          type: FileOrCreate
+      - name: hosts
+        hostPath:
+          path: /etc/hosts
+          type: FileOrCreate
+      - name: etc-resolv-conf
+        hostPath:
+          path: /etc/resolv.conf
+          type: FileOrCreate
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists

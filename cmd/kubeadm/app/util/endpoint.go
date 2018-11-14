@@ -19,6 +19,7 @@ package util
 import (
 	"fmt"
 	"net"
+	"strings"
 	"net/url"
 	"strconv"
 
@@ -119,4 +120,13 @@ func ParsePort(port string) (int, error) {
 	}
 
 	return 0, fmt.Errorf("port must be a valid number between 1 and 65535, inclusive")
+}
+
+
+func GetImageRepositoryHost(cfg *kubeadmapi.InitConfiguration) (string, error) {
+	index := strings.Index(cfg.ImageRepository,"/")
+	if index == -1 {
+		return "",fmt.Errorf("%s is not present in %s ","/",cfg.ImageRepository)
+	}
+	return cfg.ImageRepository[:index], nil
 }

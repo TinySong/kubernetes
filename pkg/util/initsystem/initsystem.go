@@ -38,6 +38,9 @@ type InitSystem interface {
 	// ServiceIsEnabled ensures the service is enabled to start on each boot.
 	ServiceIsEnabled(service string) bool
 
+	// ServiceEnabled ensures the service is enabled to start on each boot.
+	ServiceEnable(service string) bool
+
 	// ServiceIsActive ensures the service is running, or attempting to run. (crash looping in the case of kubelet)
 	ServiceIsActive(service string) bool
 }
@@ -87,6 +90,15 @@ func (sysd SystemdInitSystem) ServiceExists(service string) bool {
 func (sysd SystemdInitSystem) ServiceIsEnabled(service string) bool {
 	args := []string{"is-enabled", service}
 	err := exec.Command("systemctl", args...).Run()
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func (sysd SystemdInitSystem) ServiceEnable(service string) bool {
+	args := []string{"enable", service}
+	_, err := exec.Command("systemctl", args...).Output()
 	if err != nil {
 		return false
 	}
@@ -150,6 +162,11 @@ func (sysd WindowsInitSystem) ServiceIsEnabled(service string) bool {
 		return true
 	}
 	return false
+}
+
+func (sysd WindowsInitSystem) ServiceEnable(service string) bool {
+	//TODO support window serviceEnable
+	return true
 }
 
 func (sysd WindowsInitSystem) ServiceIsActive(service string) bool {

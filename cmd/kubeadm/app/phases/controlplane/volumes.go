@@ -33,6 +33,10 @@ import (
 const (
 	caCertsVolumeName       = "ca-certs"
 	caCertsVolumePath       = "/etc/ssl/certs"
+	localTimeVolumeName     = "localtime"
+    localTimeVolumePath     = "/etc/localtime"
+    hostsVolumeName         = "hosts"
+    hostsVolumePath         = "/etc/hosts"
 	flexvolumeDirVolumeName = "flexvolume-dir"
 	flexvolumeDirVolumePath = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec"
 )
@@ -55,6 +59,13 @@ func getHostPathVolumesForTheControlPlane(cfg *kubeadmapi.InitConfiguration) con
 	mounts.NewHostPathMount(kubeadmconstants.KubeAPIServer, kubeadmconstants.KubeCertificatesVolumeName, cfg.CertificatesDir, cfg.CertificatesDir, true, &hostPathDirectoryOrCreate)
 	// Read-only mount for the ca certs (/etc/ssl/certs) directory
 	mounts.NewHostPathMount(kubeadmconstants.KubeAPIServer, caCertsVolumeName, caCertsVolumePath, caCertsVolumePath, true, &hostPathDirectoryOrCreate)
+    // Read-only mount for the localtime (/etc/localtime)
+	mounts.NewHostPathMount(kubeadmconstants.KubeAPIServer,localTimeVolumeName,localTimeVolumePath,localTimeVolumePath,true, &hostPathFileOrCreate)
+	mounts.NewHostPathMount(kubeadmconstants.KubeControllerManager,localTimeVolumeName,localTimeVolumePath,localTimeVolumePath,true, &hostPathFileOrCreate)
+	mounts.NewHostPathMount(kubeadmconstants.KubeScheduler,localTimeVolumeName,localTimeVolumePath,localTimeVolumePath,true, &hostPathFileOrCreate)
+    // Read-only mount for the hosts (/etc/hosts)
+	mounts.NewHostPathMount(kubeadmconstants.KubeAPIServer,hostsVolumeName,hostsVolumePath,hostsVolumePath,true, &hostPathFileOrCreate)
+
 	if features.Enabled(cfg.FeatureGates, features.Auditing) {
 		// Read-only mount for the audit policy file.
 		mounts.NewHostPathMount(kubeadmconstants.KubeAPIServer, kubeadmconstants.KubeAuditPolicyVolumeName, cfg.AuditPolicyConfiguration.Path, kubeadmconstants.GetStaticPodAuditPolicyFile(), true, &hostPathFile)

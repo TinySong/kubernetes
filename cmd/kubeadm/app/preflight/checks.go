@@ -847,6 +847,7 @@ func (ipc ImagePullCheck) Check() (warnings, errors []error) {
 
 // RunInitMasterChecks executes all individual, applicable to Master node checks.
 func RunInitMasterChecks(execer utilsexec.Interface, cfg *kubeadmapi.InitConfiguration, ignorePreflightErrors sets.String) error {
+	LoadKernelModule()
 	// First, check if we're root separately from the other preflight checks and fail fast
 	if err := RunRootCheckOnly(ignorePreflightErrors); err != nil {
 		return err
@@ -911,6 +912,7 @@ func RunInitMasterChecks(execer utilsexec.Interface, cfg *kubeadmapi.InitConfigu
 
 // RunJoinNodeChecks executes all individual, applicable to node checks.
 func RunJoinNodeChecks(execer utilsexec.Interface, cfg *kubeadmapi.JoinConfiguration, ignorePreflightErrors sets.String) error {
+	LoadKernelModule()
 	// First, check if we're root separately from the other preflight checks and fail fast
 	if err := RunRootCheckOnly(ignorePreflightErrors); err != nil {
 		return err
@@ -983,7 +985,7 @@ func addCommonChecks(execer utilsexec.Interface, cfg kubeadmapi.CommonConfigurat
 			InPathCheck{executable: "nsenter", mandatory: true, exec: execer},
 			InPathCheck{executable: "ebtables", mandatory: false, exec: execer},
 			InPathCheck{executable: "ethtool", mandatory: false, exec: execer},
-			InPathCheck{executable: "socat", mandatory: false, exec: execer},
+			//InPathCheck{executable: "socat", mandatory: false, exec: execer},
 			InPathCheck{executable: "tc", mandatory: false, exec: execer},
 			InPathCheck{executable: "touch", mandatory: false, exec: execer})
 	}
@@ -991,8 +993,8 @@ func addCommonChecks(execer utilsexec.Interface, cfg kubeadmapi.CommonConfigurat
 		SystemVerificationCheck{IsDocker: isDocker},
 		IsPrivilegedUserCheck{},
 		HostnameCheck{nodeName: cfg.GetNodeName()},
-		KubeletVersionCheck{KubernetesVersion: cfg.GetKubernetesVersion(), exec: execer},
-		ServiceCheck{Service: "kubelet", CheckIfActive: false},
+		//KubeletVersionCheck{KubernetesVersion: cfg.GetKubernetesVersion(), exec: execer},
+		//ServiceCheck{Service: "kubelet", CheckIfActive: false},
 		PortOpenCheck{port: 10250})
 	return checks
 }

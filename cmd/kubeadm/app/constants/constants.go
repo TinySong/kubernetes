@@ -106,6 +106,16 @@ const (
 	// APIServerEtcdClientCertCommonName defines apiserver's etcd client certificate common name (CN)
 	APIServerEtcdClientCertCommonName = "kube-apiserver-etcd-client"
 
+
+	// EtcdClientCertAndKeyBaseName defines etcd client certificate and key base name
+	EtcdClientCertAndKeyBaseName = "etcd/client"
+	// EtcdClientCertName defines etcd client certificate name
+	EtcdClientCertName = "etcd/client.crt"
+	// EtcdClientKeyName defines etcd client key name
+	EtcdClientKeyName = "etcd/client.key"
+	// EtcdClientCertCommonName defines etcd client certificate common name (CN)
+	EtcdClientCertCommonName = "etcd-client"
+
 	// ServiceAccountKeyBaseName defines SA key base name
 	ServiceAccountKeyBaseName = "sa"
 	// ServiceAccountPublicKeyName defines SA public key base name
@@ -327,6 +337,12 @@ const (
 
 	// DefaultAPIServerBindAddress is the default bind address for the API Server
 	DefaultAPIServerBindAddress = "0.0.0.0"
+
+	NetworkIPV4Mode  = "ipv4"
+
+	NetworkIPV6Mode  = "ipv6"
+
+	NetworkDualStackMode  = "dual-stack"
 )
 
 var (

@@ -92,7 +92,7 @@ func ComponentProbe(cfg *kubeadmapi.InitConfiguration, componentName string, por
 				Scheme: scheme,
 			},
 		},
-		InitialDelaySeconds: 15,
+		InitialDelaySeconds: 60,
 		TimeoutSeconds:      15,
 		FailureThreshold:    8,
 	}

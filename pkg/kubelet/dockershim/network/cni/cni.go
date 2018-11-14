@@ -19,6 +19,7 @@ package cni
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -377,13 +378,15 @@ func (plugin *cniNetworkPlugin) buildCNIRuntimeConf(podName string, podNs string
 	}
 	if ingress != nil || egress != nil {
 		bandwidthParam := cniBandwidthEntry{}
+		//https://github.com/kubernetes/kubernetes/issues/70014
+		//https://github.com/kubernetes/kubernetes/pull/70149
 		if ingress != nil {
 			bandwidthParam.IngressRate = int(ingress.Value() / 1000)
-			bandwidthParam.IngressBurst = 0 // default to no limit
+			bandwidthParam.IngressBurst = math.MaxInt32 // default to no limit
 		}
 		if egress != nil {
 			bandwidthParam.EgressRate = int(egress.Value() / 1000)
-			bandwidthParam.EgressBurst = 0 // default to no limit
+			bandwidthParam.EgressBurst = math.MaxInt32 // default to no limit
 		}
 		rt.CapabilityArgs["bandwidth"] = bandwidthParam
 	}

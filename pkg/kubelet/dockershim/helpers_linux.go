@@ -22,7 +22,9 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"github.com/docker/docker/api/types/blkiodev"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -33,6 +35,13 @@ import (
 	"k8s.io/api/core/v1"
 	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
+
+
+var BlkioDevicePath string
+
+func init() {
+	flag.StringVar(&BlkioDevicePath, "blkio-device-path", "", "The particular device path for blkio throttle.")
+}
 
 func DefaultMemorySwap() int64 {
 	return 0
@@ -111,6 +120,31 @@ func (ds *dockerService) updateCreateConfig(
 				CPUShares:  rOpts.CpuShares,
 				CPUQuota:   rOpts.CpuQuota,
 				CPUPeriod:  rOpts.CpuPeriod,
+			}
+			if rOpts.StorageReadBandwidthLimit != 0 {
+				blkioDeviceReadBps := []*blkiodev.ThrottleDevice{
+					{Path: BlkioDevicePath, Rate: uint64(rOpts.StorageReadBandwidthLimit)},
+				}
+				createConfig.HostConfig.Resources.BlkioDeviceReadBps = blkioDeviceReadBps
+			}
+			if rOpts.StorageWriteBandwidthLimit !=0 {
+				blkioDeviceWriteBps := []*blkiodev.ThrottleDevice{
+					{Path: BlkioDevicePath, Rate: uint64(rOpts.StorageWriteBandwidthLimit)},
+				}
+				createConfig.HostConfig.Resources.BlkioDeviceWriteBps = blkioDeviceWriteBps
+			}
+
+			if rOpts.StorageReadIopsLimit != 0 {
+				blkioDeviceReadIOps := []*blkiodev.ThrottleDevice{
+					{Path: BlkioDevicePath, Rate: uint64(rOpts.StorageReadIopsLimit)},
+				}
+				createConfig.HostConfig.Resources.BlkioDeviceReadIOps = blkioDeviceReadIOps
+			}
+			if rOpts.StorageWriteIopsLimit != 0 {
+				blkioDeviceWriteIOps := []*blkiodev.ThrottleDevice{
+					{Path: BlkioDevicePath, Rate: uint64(rOpts.StorageWriteIopsLimit)},
+				}
+				createConfig.HostConfig.Resources.BlkioDeviceWriteIOps = blkioDeviceWriteIOps
 			}
 			createConfig.HostConfig.OomScoreAdj = int(rOpts.OomScoreAdj)
 		}

@@ -140,6 +140,11 @@ var standardContainerResources = sets.NewString(
 	string(core.ResourceCPU),
 	string(core.ResourceMemory),
 	string(core.ResourceEphemeralStorage),
+    //device qos for docker
+	string(core.ResourceStorageReadBandwidth),
+	string(core.ResourceStorageWriteBandwidth),
+	string(core.ResourceStorageReadIOps),
+	string(core.ResourceStorageWriteIOps),
 )
 
 // IsStandardContainerResourceName returns true if the container can make a resource request

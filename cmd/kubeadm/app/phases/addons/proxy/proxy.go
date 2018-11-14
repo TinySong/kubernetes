@@ -52,11 +52,15 @@ func EnsureProxyAddon(cfg *kubeadmapi.InitConfiguration, client clientset.Interf
 	}
 
 	// Generate Master Enpoint kubeconfig file
-	masterEndpoint, err := kubeadmutil.GetMasterEndpoint(cfg)
-	if err != nil {
-		return err
-	}
-
+	//masterEndpoint, err := kubeadmutil.GetMasterEndpoint(cfg)
+	//if err != nil {
+	//	return err
+	//}
+	masterEndpoint := fmt.Sprintf("https://kubernetes.%s:%d",cfg.Networking.DNSDomain,cfg.APIEndpoint.BindPort)
+	// inCluster set ipvs default
+    //if cfg.ComponentConfigs.KubeProxy.Mode == "" {
+	//	cfg.ComponentConfigs.KubeProxy.Mode = ipvs.ProxyModeIPVS
+	//}
 	proxyBytes, err := componentconfigs.Known[componentconfigs.KubeProxyConfigurationKind].Marshal(cfg.ComponentConfigs.KubeProxy)
 	if err != nil {
 		return fmt.Errorf("error when marshaling: %v", err)

@@ -22,6 +22,7 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
+	batch "k8s.io/api/batch/v1"
 	rbac "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,6 +101,33 @@ func CreateOrUpdateDeployment(client clientset.Interface, deploy *apps.Deploymen
 
 		if _, err := client.AppsV1().Deployments(deploy.ObjectMeta.Namespace).Update(deploy); err != nil {
 			return fmt.Errorf("unable to update deployment: %v", err)
+		}
+	}
+	return nil
+}
+
+// CreateOrUpdateService creates a Service if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateService(client clientset.Interface, svc *v1.Service) error {
+	if _, err := client.CoreV1().Services(svc.ObjectMeta.Namespace).Create(svc); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("unable to create deployment: %v", err)
+		}
+		if _, err := client.CoreV1().Services(svc.ObjectMeta.Namespace).Create(svc); err != nil {
+			return fmt.Errorf("unable to update deployment: %v", err)
+		}
+	}
+	return nil
+}
+
+// CreateOrUpdateJob creates a Job if the target resource doesn't exist. If the resource exists already, this function will update the resource instead.
+func CreateOrUpdateJob(client clientset.Interface, job *batch.Job) error {
+	if _, err := client.BatchV1().Jobs(job.ObjectMeta.Namespace).Create(job); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("unable to create a new calicoctl Job: %v", err)
+		}
+
+		if _, err := client.BatchV1().Jobs(job.ObjectMeta.Namespace).Update(job); err != nil {
+			return fmt.Errorf("unable to update the calicoctl Job: %v", err)
 		}
 	}
 	return nil

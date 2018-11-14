@@ -217,6 +217,7 @@ metadata:
   namespace: kube-system
   labels:
     k8s-app: kube-dns
+    plugin: coredns
 spec:
   replicas: 2
   strategy:
