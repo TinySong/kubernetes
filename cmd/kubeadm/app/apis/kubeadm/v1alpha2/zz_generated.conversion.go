@@ -323,7 +323,7 @@ func Convert_kubeadm_HostPathMount_To_v1alpha2_HostPathMount(in *kubeadm.HostPat
 }
 
 func autoConvert_v1alpha2_InitConfiguration_To_kubeadm_InitConfiguration(in *InitConfiguration, out *kubeadm.InitConfiguration, s conversion.Scope) error {
-	out.BootstrapTokens = *(*[]kubeadm.BootstrapToken)(unsafe.Pointer(&in.BootstrapTokens))
+	// WARNING: in.BootstrapTokens requires manual conversion: does not exist in peer-type
 	if err := Convert_v1alpha2_NodeRegistrationOptions_To_kubeadm_NodeRegistrationOptions(&in.NodeRegistration, &out.NodeRegistration, s); err != nil {
 		return err
 	}
@@ -351,7 +351,6 @@ func autoConvert_v1alpha2_InitConfiguration_To_kubeadm_InitConfiguration(in *Ini
 
 func autoConvert_kubeadm_InitConfiguration_To_v1alpha2_InitConfiguration(in *kubeadm.InitConfiguration, out *InitConfiguration, s conversion.Scope) error {
 	// WARNING: in.ClusterConfiguration requires manual conversion: does not exist in peer-type
-	out.BootstrapTokens = *(*[]BootstrapToken)(unsafe.Pointer(&in.BootstrapTokens))
 	if err := Convert_kubeadm_NodeRegistrationOptions_To_v1alpha2_NodeRegistrationOptions(&in.NodeRegistration, &out.NodeRegistration, s); err != nil {
 		return err
 	}
@@ -432,6 +431,7 @@ func autoConvert_v1alpha2_Networking_To_kubeadm_Networking(in *Networking, out *
 	out.ServiceSubnet = in.ServiceSubnet
 	out.PodSubnet = in.PodSubnet
 	out.DNSDomain = in.DNSDomain
+	out.Plugin = in.Plugin
 	return nil
 }
 
@@ -444,6 +444,7 @@ func autoConvert_kubeadm_Networking_To_v1alpha2_Networking(in *kubeadm.Networkin
 	out.ServiceSubnet = in.ServiceSubnet
 	out.PodSubnet = in.PodSubnet
 	out.DNSDomain = in.DNSDomain
+	out.Plugin = in.Plugin
 	return nil
 }
 

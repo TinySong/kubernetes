@@ -49,6 +49,7 @@ import (
 	markmasterphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/markmaster"
 	patchnodephase "k8s.io/kubernetes/cmd/kubeadm/app/phases/patchnode"
 	uploadconfigphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/uploadconfig"
+	cmdphases "k8s.io/kubernetes/cmd/kubeadm/app/cmd/phases"
 	"k8s.io/kubernetes/cmd/kubeadm/app/preflight"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
@@ -303,16 +304,20 @@ func (j *Join) Run(out io.Writer) error {
 		return err
 	}
 
+	glog.V(1).Infoln("[join] Performing discovery certificate")
+	if err := certsphase.PerformTLSBootstrap(j.cfg); err != nil {
+		return err
+	}
+
 	// If the node should host a new control plane instance
 	var initConfiguration *kubeadmapi.InitConfiguration
+	// Retrives the kubeadm configuration used during kubeadm
+	glog.V(1).Infoln("[join] retrieving KubeConfig objects")
+	initConfiguration, err = j.FetchInitConfiguration(tlsBootstrapCfg, j.cfg.ControlPlane)
+	if err != nil {
+		return err
+	}
 	if j.cfg.ControlPlane == true {
-		// Retrives the kubeadm configuration used during kubeadm init
-		glog.V(1).Infoln("[join] retrieving KubeConfig objects")
-		initConfiguration, err = j.FetchInitConfiguration(tlsBootstrapCfg)
-		if err != nil {
-			return err
-		}
-
 		// injects into the kubeadm configuration the information about the joining node
 		initConfiguration.NodeRegistration = j.cfg.NodeRegistration
 		initConfiguration.APIEndpoint = j.cfg.APIEndpoint
@@ -347,8 +352,12 @@ func (j *Join) Run(out io.Writer) error {
 	// if the node is hosting a new control plane instance, since it uses static pods for the control plane,
 	// as soon as the kubelet starts it will take charge of creating control plane
 	// components on the node.
-	if err = j.BootstrapKubelet(tlsBootstrapCfg); err != nil {
-		return err
+	err = kubeletphase.TryInstallKubelet(initConfiguration.ImageRepository, initConfiguration.KubernetesVersion)
+	if err != nil {
+		return fmt.Errorf("error try install kubelet: %v", err)
+	}
+	if err = j.BootstrapKubelet(tlsBootstrapCfg, initConfiguration.KubernetesVersion); err != nil {
+		return fmt.Errorf("error bootstrap kubelet: %v", err)
 	}
 
 	// if the node is hosting a new control plane instance
@@ -366,6 +375,7 @@ func (j *Join) Run(out io.Writer) error {
 		return nil
 	}
 
+
 	// otherwise, if the node joined as a worker node;
 	// outputs the join done message and exits
 	fmt.Fprintf(out, joinWorkerNodeDoneMsg)
@@ -373,7 +383,7 @@ func (j *Join) Run(out io.Writer) error {
 }
 
 // FetchInitConfiguration reads the cluster configuration from the kubeadm-admin configMap,
-func (j *Join) FetchInitConfiguration(tlsBootstrapCfg *clientcmdapi.Config) (*kubeadmapi.InitConfiguration, error) {
+func (j *Join) FetchInitConfiguration(tlsBootstrapCfg *clientcmdapi.Config, newControlPlane bool) (*kubeadmapi.InitConfiguration, error) {
 	// creates a client to access the cluster using the bootstrap token identity
 	tlsClient, err := kubeconfigutil.ToClientSet(tlsBootstrapCfg)
 	if err != nil {
@@ -452,7 +462,7 @@ func (j *Join) PrepareForHostingControlPlane(initConfiguration *kubeadmapi.InitC
 // BootstrapKubelet executes the kubelet TLS bootstrap process.
 // This process is executed by the kubelet and completes with the node joining the cluster
 // with a dedicates set of credentials as required by the node authorizer
-func (j *Join) BootstrapKubelet(tlsBootstrapCfg *clientcmdapi.Config) error {
+func (j *Join) BootstrapKubelet(tlsBootstrapCfg *clientcmdapi.Config, kubernetesVersion string) error {
 	bootstrapKubeConfigFile := kubeadmconstants.GetBootstrapKubeletKubeConfigPath()
 
 	// Write the bootstrap kubelet config file or the TLS-Boostrapped kubelet config file down to disk
@@ -469,7 +479,7 @@ func (j *Join) BootstrapKubelet(tlsBootstrapCfg *clientcmdapi.Config) error {
 		}
 	}
 
-	kubeletVersion, err := preflight.GetKubeletVersion(utilsexec.New())
+	kubeletVersion, err := cmdphases.GetKubeletVersion(kubernetesVersion)
 	if err != nil {
 		return err
 	}

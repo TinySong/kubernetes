@@ -37,6 +37,10 @@ func RegisterDefaults(scheme *runtime.Scheme) error {
 
 func SetObjectDefaults_ClusterConfiguration(in *ClusterConfiguration) {
 	SetDefaults_ClusterConfiguration(in)
+	for i := range in.BootstrapTokens {
+		a := &in.BootstrapTokens[i]
+		SetDefaults_BootstrapToken(a)
+	}
 }
 
 func SetObjectDefaults_ClusterStatus(in *ClusterStatus) {
@@ -45,10 +49,6 @@ func SetObjectDefaults_ClusterStatus(in *ClusterStatus) {
 func SetObjectDefaults_InitConfiguration(in *InitConfiguration) {
 	SetDefaults_InitConfiguration(in)
 	SetObjectDefaults_ClusterConfiguration(&in.ClusterConfiguration)
-	for i := range in.BootstrapTokens {
-		a := &in.BootstrapTokens[i]
-		SetDefaults_BootstrapToken(a)
-	}
 	SetDefaults_NodeRegistrationOptions(&in.NodeRegistration)
 	SetDefaults_APIEndpoint(&in.APIEndpoint)
 }

@@ -217,6 +217,7 @@ func GetDefaultCertList() Certificates {
 		&KubeadmCertEtcdPeer,
 		&KubeadmCertEtcdHealthcheck,
 		&KubeadmCertEtcdAPIClient,
+		&KubeadmCertEtcdClient,
 	}
 }
 
@@ -352,6 +353,19 @@ var (
 		CAName:   "etcd-ca",
 		config: certutil.Config{
 			CommonName:   kubeadmconstants.APIServerEtcdClientCertCommonName,
+			Organization: []string{kubeadmconstants.MastersGroup},
+			Usages:       []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		},
+	}
+
+	// KubeadmCertEtcdClient is the definition of the cert used by the agent & calico to access etcd.
+	KubeadmCertEtcdClient = KubeadmCert{
+		Name:     "client",
+		LongName: "client uses to access etcd",
+		BaseName: kubeadmconstants.EtcdClientCertAndKeyBaseName,
+		CAName:   "etcd-ca",
+		config: certutil.Config{
+			CommonName:   kubeadmconstants.EtcdClientCertCommonName,
 			Organization: []string{kubeadmconstants.MastersGroup},
 			Usages:       []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		},

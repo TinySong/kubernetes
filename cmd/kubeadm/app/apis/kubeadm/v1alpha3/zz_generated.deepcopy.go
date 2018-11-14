@@ -174,6 +174,18 @@ func (in *ClusterConfiguration) DeepCopyInto(out *ClusterConfiguration) {
 			(*out)[key] = val
 		}
 	}
+	if in.BootstrapTokens != nil {
+		in, out := &in.BootstrapTokens, &out.BootstrapTokens
+		*out = make([]BootstrapToken, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.DiscoveryTokenAPIServers != nil {
+		in, out := &in.DiscoveryTokenAPIServers, &out.DiscoveryTokenAPIServers
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -295,13 +307,6 @@ func (in *InitConfiguration) DeepCopyInto(out *InitConfiguration) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ClusterConfiguration.DeepCopyInto(&out.ClusterConfiguration)
-	if in.BootstrapTokens != nil {
-		in, out := &in.BootstrapTokens, &out.BootstrapTokens
-		*out = make([]BootstrapToken, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
 	in.NodeRegistration.DeepCopyInto(&out.NodeRegistration)
 	out.APIEndpoint = in.APIEndpoint
 	return

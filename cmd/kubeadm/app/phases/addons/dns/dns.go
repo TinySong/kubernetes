@@ -207,7 +207,7 @@ func coreDNSAddon(cfg *kubeadmapi.InitConfiguration, client clientset.Interface)
 	if err := createCoreDNSAddon(coreDNSDeploymentBytes, coreDNSServiceBytes, coreDNSConfigMapBytes, client); err != nil {
 		return err
 	}
-	fmt.Println("[addons] Applied essential addon: CoreDNS")
+	fmt.Println("[addons] Applied essential addon: coredns")
 	return nil
 }
 

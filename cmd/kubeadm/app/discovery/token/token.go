@@ -156,7 +156,7 @@ func RetrieveValidatedConfigInfo(cfg *kubeadmapi.JoinConfiguration) (*clientcmda
 			return nil, fmt.Errorf("couldn't parse the kubeconfig file in the %s configmap: %v", bootstrapapi.ConfigMapClusterInfo, err)
 		}
 
-		fmt.Printf("[discovery] Cluster info signature and contents are valid and TLS certificate validates against pinned roots, will use API Server %q\n", endpoint)
+		fmt.Printf("[discovery] Cluster info signature, contents and TLS certificate are valid, will use API Server %q\n", endpoint)
 		return secureKubeconfig, nil
 	})
 	if err != nil {

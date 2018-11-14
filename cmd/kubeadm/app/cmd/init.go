@@ -38,11 +38,8 @@ import (
 	kubeadmapiv1alpha3 "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1alpha3"
 	"k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/validation"
 	"k8s.io/kubernetes/cmd/kubeadm/app/cmd/options"
-	cmdutil "k8s.io/kubernetes/cmd/kubeadm/app/cmd/util"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	"k8s.io/kubernetes/cmd/kubeadm/app/features"
-	dnsaddonphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/addons/dns"
-	proxyaddonphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/addons/proxy"
 	clusterinfophase "k8s.io/kubernetes/cmd/kubeadm/app/phases/bootstraptoken/clusterinfo"
 	nodebootstraptokenphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/bootstraptoken/node"
 	certsphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/certs"
@@ -54,6 +51,7 @@ import (
 	patchnodephase "k8s.io/kubernetes/cmd/kubeadm/app/phases/patchnode"
 	selfhostingphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/selfhosting"
 	uploadconfigphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/uploadconfig"
+	cmdphases "k8s.io/kubernetes/cmd/kubeadm/app/cmd/phases"
 	"k8s.io/kubernetes/cmd/kubeadm/app/preflight"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
@@ -62,26 +60,25 @@ import (
 	dryrunutil "k8s.io/kubernetes/cmd/kubeadm/app/util/dryrun"
 	kubeconfigutil "k8s.io/kubernetes/cmd/kubeadm/app/util/kubeconfig"
 	utilsexec "k8s.io/utils/exec"
+	"k8s.io/kubernetes/cmd/kubeadm/app/phases/addons"
+	"k8s.io/kubernetes/cmd/kubeadm/app/util/pubkeypin"
+	"k8s.io/kubernetes/cmd/kubeadm/app/phases/certs/pkiutil"
 )
 
 var (
 	initDoneTempl = template.Must(template.New("init").Parse(dedent.Dedent(`
-		Your Kubernetes master has initialized successfully!
+        Your Kubernetes master has initialized successfully!
 
-		To start using your cluster, you need to run the following as a regular user:
+        To start using your cluster:
+        you can now join any number of control plane nodes by running the following on master node
+        as root:
 
-		  mkdir -p $HOME/.kube
-		  sudo cp -i {{.KubeConfigPath}} $HOME/.kube/config
-		  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+        sudo bash -c "$(docker run --rm -v /tmp:/tmp {{.ImageRepository}}/tde:v4.0.0 --registry {{.ImageRepositoryHost}} --token {{.Token}} --ha-peer {{.MasterHost}} Init)"
 
-		You should now deploy a pod network to the cluster.
-		Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
-		  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+        or you can now join any number of kubernetes workers by running the following on slave node
+        as root:
 
-		You can now join any number of machines by running the following on each node
-		as root:
-
-		  {{.joinCommand}}
+        sudo bash -c "$(docker run --rm -v /tmp:/tmp {{.ImageRepository}}/tde:v4.0.0 --registry {{.ImageRepositoryHost}} --token {{.Token}} --ca-cert-hash {{.CAPubKeyPin}} Join {{.MasterHost}})"
 
 		`)))
 
@@ -284,6 +281,10 @@ func (i *Init) Run(out io.Writer) error {
 	// First off, configure the kubelet. In this short timeframe, kubeadm is trying to stop/restart the kubelet
 	// Try to stop the kubelet service so no race conditions occur when configuring it
 	if !i.dryRun {
+		err = kubeletphase.TryInstallKubelet(i.cfg.ImageRepository, i.cfg.KubernetesVersion)
+		if err != nil {
+			return fmt.Errorf("error install Kubelet: %v", err)
+		}
 		glog.V(1).Infof("Stopping the kubelet")
 		kubeletphase.TryStopKubelet()
 	}
@@ -300,6 +301,7 @@ func (i *Init) Run(out io.Writer) error {
 		return fmt.Errorf("error writing kubelet configuration to disk: %v", err)
 	}
 
+	// Install Kubelet
 	if !i.dryRun {
 		// Try to start the kubelet service in case it's inactive
 		glog.V(1).Infof("Starting the kubelet")
@@ -348,6 +350,11 @@ func (i *Init) Run(out io.Writer) error {
 	// This is needed for writing the right kind of manifests
 	i.cfg.CertificatesDir = realCertsDir
 
+	err = controlplanephase.CreateTokenAuthFile(i.cfg)
+	if err != nil {
+		return fmt.Errorf("error create token auth file: %v", err)
+	}
+
 	// PHASE 3: Bootstrap the control plane
 	glog.V(1).Infof("[init] bootstraping the control plane")
 	glog.V(1).Infof("[init] creating static pod manifest")
@@ -394,18 +401,6 @@ func (i *Init) Run(out io.Writer) error {
 		return fmt.Errorf("couldn't initialize a Kubernetes cluster")
 	}
 
-	// Upload currently used configuration to the cluster
-	// Note: This is done right in the beginning of cluster initialization; as we might want to make other phases
-	// depend on centralized information from this source in the future
-	glog.V(1).Infof("[init] uploading currently used configuration to the cluster")
-	if err := uploadconfigphase.UploadConfiguration(i.cfg, client); err != nil {
-		return fmt.Errorf("error uploading configuration: %v", err)
-	}
-
-	glog.V(1).Infof("[init] creating kubelet configuration configmap")
-	if err := kubeletphase.CreateConfigMap(i.cfg, client); err != nil {
-		return fmt.Errorf("error creating kubelet configuration ConfigMap: %v", err)
-	}
 
 	// PHASE 4: Mark the master with the right label/taint
 	glog.V(1).Infof("[init] marking the master with right label")
@@ -420,7 +415,7 @@ func (i *Init) Run(out io.Writer) error {
 
 	// This feature is disabled by default
 	if features.Enabled(i.cfg.FeatureGates, features.DynamicKubeletConfig) {
-		kubeletVersion, err := preflight.GetKubeletVersion(utilsexec.New())
+		kubeletVersion, err := cmdphases.GetKubeletVersion(i.cfg.KubernetesVersion)
 		if err != nil {
 			return err
 		}
@@ -444,48 +439,85 @@ func (i *Init) Run(out io.Writer) error {
 		}
 	}
 
-	// Create the default node bootstrap token
-	glog.V(1).Infof("[init] creating RBAC rules to generate default bootstrap token")
-	if err := nodebootstraptokenphase.UpdateOrCreateTokens(client, false, i.cfg.BootstrapTokens); err != nil {
-		return fmt.Errorf("error updating or creating token: %v", err)
-	}
-	// Create RBAC rules that makes the bootstrap tokens able to post CSRs
-	glog.V(1).Infof("[init] creating RBAC rules to allow bootstrap tokens to post CSR")
-	if err := nodebootstraptokenphase.AllowBootstrapTokensToPostCSRs(client); err != nil {
-		return fmt.Errorf("error allowing bootstrap tokens to post CSRs: %v", err)
-	}
-	// Create RBAC rules that makes the bootstrap tokens able to get their CSRs approved automatically
-	glog.V(1).Infof("[init] creating RBAC rules to automatic approval of CSRs automatically")
-	if err := nodebootstraptokenphase.AutoApproveNodeBootstrapTokens(client); err != nil {
-		return fmt.Errorf("error auto-approving node bootstrap tokens: %v", err)
-	}
 
-	// Create/update RBAC rules that makes the nodes to rotate certificates and get their CSRs approved automatically
-	glog.V(1).Infof("[init] creating/updating RBAC rules for rotating certificate")
-	if err := nodebootstraptokenphase.AutoApproveNodeCertificateRotation(client); err != nil {
-		return err
-	}
+	if len(i.cfg.DiscoveryTokenAPIServers) == 0 {
+		// Upload currently used configuration to the cluster
+		// Note: This is done right in the beginning of cluster initialization; as we might want to make other phases
+		// depend on centralized information from this source in the future
+		glog.V(1).Infof("[init] uploading currently used configuration to the cluster")
+		if err := uploadconfigphase.UploadConfiguration(i.cfg, client); err != nil {
+			return fmt.Errorf("error uploading configuration: %v", err)
+		}
 
-	// Create the cluster-info ConfigMap with the associated RBAC rules
-	glog.V(1).Infof("[init] creating bootstrap configmap")
-	if err := clusterinfophase.CreateBootstrapConfigMapIfNotExists(client, adminKubeConfigPath); err != nil {
-		return fmt.Errorf("error creating bootstrap configmap: %v", err)
-	}
-	glog.V(1).Infof("[init] creating ClusterInfo RBAC rules")
-	if err := clusterinfophase.CreateClusterInfoRBACRules(client); err != nil {
-		return fmt.Errorf("error creating clusterinfo RBAC rules: %v", err)
-	}
+		glog.V(1).Infof("[init] creating kubelet configuration configmap")
+		if err := kubeletphase.CreateConfigMap(i.cfg, client); err != nil {
+			return fmt.Errorf("error creating kubelet configuration ConfigMap: %v", err)
+		}
 
-	glog.V(1).Infof("[init] ensuring DNS addon")
-	if err := dnsaddonphase.EnsureDNSAddon(i.cfg, client); err != nil {
-		return fmt.Errorf("error ensuring dns addon: %v", err)
-	}
+		// Create the default node bootstrap token
+		glog.V(1).Infof("[init] creating RBAC rules to generate default bootstrap token")
+		if err := nodebootstraptokenphase.UpdateOrCreateTokens(client, false, i.cfg.BootstrapTokens); err != nil {
+			return fmt.Errorf("error updating or creating token: %v", err)
+		}
+		// Create RBAC rules that makes the bootstrap tokens able to post CSRs
+		glog.V(1).Infof("[init] creating RBAC rules to allow bootstrap tokens to post CSR")
+		if err := nodebootstraptokenphase.AllowBootstrapTokensToPostCSRs(client); err != nil {
+			return fmt.Errorf("error allowing bootstrap tokens to post CSRs: %v", err)
+		}
+		// Create RBAC rules that makes the bootstrap tokens able to get their CSRs approved automatically
+		glog.V(1).Infof("[init] creating RBAC rules to automatic approval of CSRs automatically")
+		if err := nodebootstraptokenphase.AutoApproveNodeBootstrapTokens(client); err != nil {
+			return fmt.Errorf("error auto-approving node bootstrap tokens: %v", err)
+		}
 
-	glog.V(1).Infof("[init] ensuring proxy addon")
-	if err := proxyaddonphase.EnsureProxyAddon(i.cfg, client); err != nil {
-		return fmt.Errorf("error ensuring proxy addon: %v", err)
-	}
+		// Create/update RBAC rules that makes the nodes to rotate certificates and get their CSRs approved automatically
+		glog.V(1).Infof("[init] creating/updating RBAC rules for rotating certificate")
+		if err := nodebootstraptokenphase.AutoApproveNodeCertificateRotation(client); err != nil {
+			return fmt.Errorf("error creating/updating RBAC rules for rotating certificate: %v", err)
+		}
 
+		glog.V(1).Infof("[init] allowing user group Kubernetes in")
+		if err := nodebootstraptokenphase.AllowUserGroupKubernetesIn(client); err != nil {
+			return fmt.Errorf("error AllowUserGroup in : %v", err)
+		}
+
+		// Create the cluster-info ConfigMap with the associated RBAC rules
+		glog.V(1).Infof("[init] creating bootstrap configmap")
+		if err := clusterinfophase.CreateBootstrapConfigMapIfNotExists(client, adminKubeConfigPath); err != nil {
+			return fmt.Errorf("error creating bootstrap configmap: %v", err)
+		}
+		glog.V(1).Infof("[init] creating ClusterInfo RBAC rules")
+		if err := clusterinfophase.CreateClusterInfoRBACRules(client); err != nil {
+			return fmt.Errorf("error creating clusterinfo RBAC rules: %v", err)
+		}
+
+		glog.V(1).Infof("[init] creating kube-scheduler ConfigMap")
+		if err := controlplanephase.CreateConfigMapForKubeScheduler(client); err != nil {
+			return fmt.Errorf("error creating kube-scheduler ConfigMap in kube-system: %v", err)
+		}
+
+		glog.V(1).Infof("[init] creating default podSecurityPolicy")
+		if err := controlplanephase.CreateDefaultPodSecurityPolicy(client); err != nil {
+			return fmt.Errorf("error creating default podSecurityPolicy: %v", err)
+		}
+
+		// PHASE 6:  Deploy AddOns
+		glog.V(1).Infof("[init] ensuring all addons")
+		if err := addons.DeployAddons(i.cfg, client); err != nil {
+			return fmt.Errorf("error ensuring all addon: %v", err)
+		}
+
+		if i.cfg.ApiServerUrl != "" && i.cfg.ApiServerCredential != "" {
+			k8sAddress := i.cfg.APIEndpoint.AdvertiseAddress
+			if len(i.cfg.ControlPlaneEndpoint) != 0 {
+				k8sAddress = i.cfg.ControlPlaneEndpoint
+			}
+			if err := controlplanephase.CallBack(i.cfg.ApiServerUrl,i.cfg.ApiServerCredential, i.cfg.ClusterId, k8sAddress,tokens[0]); err != nil {
+				return err
+			}
+		}
+
+	}
 	// PHASE 7: Make the control plane self-hosted if feature gate is enabled
 	if features.Enabled(i.cfg.FeatureGates, features.SelfHosting) {
 		glog.V(1).Infof("[init] feature gate is enabled. Making control plane self-hosted")
@@ -504,26 +536,34 @@ func (i *Init) Run(out io.Writer) error {
 	}
 
 	// Prints the join command, multiple times in case the user has multiple tokens
-	for _, token := range tokens {
-		if err := printJoinCommand(out, adminKubeConfigPath, token, i.skipTokenPrint); err != nil {
-			return fmt.Errorf("failed to print join command: %v", err)
-		}
-	}
-	return nil
+	return printJoinCommand(i.cfg, out)
 }
 
-func printJoinCommand(out io.Writer, adminKubeConfigPath, token string, skipTokenPrint bool) error {
-	joinCommand, err := cmdutil.GetJoinCommand(adminKubeConfigPath, token, skipTokenPrint)
+func printJoinCommand(cfg *kubeadmapi.InitConfiguration,out io.Writer) error {
+	imageRepositoryHost,err := kubeadmutil.GetImageRepositoryHost(cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("error Get Image Repository Host : %v", err)
 	}
-
+	caCert, err := pkiutil.TryLoadCertFromDisk(cfg.CertificatesDir, kubeadmconstants.CACertAndKeyBaseName)
+	if err == nil {
+		// Cert exists already, make sure it's valid
+		if !caCert.IsCA {
+			return fmt.Errorf("certificate %q is not a CA", kubeadmconstants.CACertAndKeyBaseName)
+		}
+	} else {
+		return fmt.Errorf("try load ca certificates from disk error : [%v]", err)
+	}
 	ctx := map[string]string{
-		"KubeConfigPath": adminKubeConfigPath,
-		"joinCommand":    joinCommand,
+		"ImageRepository"    : cfg.ImageRepository,
+		"ImageRepositoryHost": imageRepositoryHost,
+		"Token"              : cfg.BootstrapTokens[0].Token.String(),
+		"CAPubKeyPin"        : pubkeypin.Hash(caCert),
+		"MasterHost"         : cfg.APIEndpoint.AdvertiseAddress,
 	}
-
-	return initDoneTempl.Execute(out, ctx)
+	if cfg.ApiServerUrl == "" || cfg.ApiServerCredential == "" {
+		return initDoneTempl.Execute(out, ctx)
+	}
+	return nil
 }
 
 // createClient creates a clientset.Interface object

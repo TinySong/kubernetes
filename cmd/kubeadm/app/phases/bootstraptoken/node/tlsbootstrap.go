@@ -111,3 +111,35 @@ func AutoApproveNodeCertificateRotation(client clientset.Interface) error {
 		},
 	})
 }
+
+// grant ClusterRole cluster-admin to Group kubernetes
+func AllowUserGroupKubernetesIn(client clientset.Interface) error {
+	fmt.Println("[bootstraptoken] Configured RBAC rules to allow users in group kubernetes to access the cluster")
+
+	var options metav1.GetOptions
+	clusterAdminBinding, err := client.RbacV1().ClusterRoleBindings().Get("cluster-admin", options)
+	if err != nil {
+		return fmt.Errorf("unable to get cluster-admin clusterrolebinding %v", err)
+	}
+	mastersGroup := rbac.Subject{
+		APIGroup: rbac.GroupName,
+		Kind:     "Group",
+		Name:     constants.MastersGroup,
+	}
+	nodesGroup := rbac.Subject{
+		APIGroup: rbac.GroupName,
+		Kind:     "Group",
+		Name:     constants.NodesGroup,
+	}
+	kubernetes := rbac.Subject{
+		APIGroup: rbac.GroupName,
+		Kind:     "Group",
+		Name:     "kubernetes",
+	}
+	clusterAdminBinding.Subjects = append(clusterAdminBinding.Subjects,mastersGroup,nodesGroup, kubernetes)
+	_, err = client.RbacV1().ClusterRoleBindings().Update(clusterAdminBinding)
+	if err != nil {
+		return fmt.Errorf("unable to update cluster-admin clusterrolebinding %v", err)
+	}
+	return nil
+}

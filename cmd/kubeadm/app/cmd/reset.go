@@ -140,6 +140,13 @@ func (r *Reset) Run(out io.Writer) error {
 		glog.Errorf("[reset] failed to unmount mounted directories in %s: %s\n", kubeadmconstants.KubeletRunDirectory, string(umountOutputBytes))
 	}
 
+	// remove /etc/systemd/system/kubelet.service*
+	removeServiceCmd := "rm -rf /etc/systemd/system/kubelet.service* "
+	removeServiceCmdBytes, err := exec.Command("sh", "-c", removeServiceCmd).Output()
+	if err != nil {
+		fmt.Printf("[reset] Failed to remote kubelet.service : %s\n", string(removeServiceCmdBytes))
+	}
+
 	glog.V(1).Info("[reset] removing kubernetes-managed containers")
 	if err := removeContainers(utilsexec.New(), r.criSocketPath); err != nil {
 		glog.Errorf("[reset] failed to remove containers: %+v", err)

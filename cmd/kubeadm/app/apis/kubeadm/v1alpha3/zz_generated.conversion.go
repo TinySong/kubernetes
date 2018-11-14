@@ -307,6 +307,11 @@ func autoConvert_v1alpha3_ClusterConfiguration_To_kubeadm_ClusterConfiguration(i
 	}
 	out.FeatureGates = *(*map[string]bool)(unsafe.Pointer(&in.FeatureGates))
 	out.ClusterName = in.ClusterName
+	out.BootstrapTokens = *(*[]kubeadm.BootstrapToken)(unsafe.Pointer(&in.BootstrapTokens))
+	out.DiscoveryTokenAPIServers = *(*[]string)(unsafe.Pointer(&in.DiscoveryTokenAPIServers))
+	out.ApiServerUrl = in.ApiServerUrl
+	out.ApiServerCredential = in.ApiServerCredential
+	out.ClusterId = in.ClusterId
 	return nil
 }
 
@@ -336,6 +341,11 @@ func autoConvert_kubeadm_ClusterConfiguration_To_v1alpha3_ClusterConfiguration(i
 	}
 	out.FeatureGates = *(*map[string]bool)(unsafe.Pointer(&in.FeatureGates))
 	out.ClusterName = in.ClusterName
+	out.BootstrapTokens = *(*[]BootstrapToken)(unsafe.Pointer(&in.BootstrapTokens))
+	out.DiscoveryTokenAPIServers = *(*[]string)(unsafe.Pointer(&in.DiscoveryTokenAPIServers))
+	out.ApiServerUrl = in.ApiServerUrl
+	out.ApiServerCredential = in.ApiServerCredential
+	out.ClusterId = in.ClusterId
 	return nil
 }
 
@@ -444,7 +454,6 @@ func autoConvert_v1alpha3_InitConfiguration_To_kubeadm_InitConfiguration(in *Ini
 	if err := Convert_v1alpha3_ClusterConfiguration_To_kubeadm_ClusterConfiguration(&in.ClusterConfiguration, &out.ClusterConfiguration, s); err != nil {
 		return err
 	}
-	out.BootstrapTokens = *(*[]kubeadm.BootstrapToken)(unsafe.Pointer(&in.BootstrapTokens))
 	if err := Convert_v1alpha3_NodeRegistrationOptions_To_kubeadm_NodeRegistrationOptions(&in.NodeRegistration, &out.NodeRegistration, s); err != nil {
 		return err
 	}
@@ -463,7 +472,6 @@ func autoConvert_kubeadm_InitConfiguration_To_v1alpha3_InitConfiguration(in *kub
 	if err := Convert_kubeadm_ClusterConfiguration_To_v1alpha3_ClusterConfiguration(&in.ClusterConfiguration, &out.ClusterConfiguration, s); err != nil {
 		return err
 	}
-	out.BootstrapTokens = *(*[]BootstrapToken)(unsafe.Pointer(&in.BootstrapTokens))
 	if err := Convert_kubeadm_NodeRegistrationOptions_To_v1alpha3_NodeRegistrationOptions(&in.NodeRegistration, &out.NodeRegistration, s); err != nil {
 		return err
 	}
@@ -564,6 +572,7 @@ func autoConvert_v1alpha3_Networking_To_kubeadm_Networking(in *Networking, out *
 	out.ServiceSubnet = in.ServiceSubnet
 	out.PodSubnet = in.PodSubnet
 	out.DNSDomain = in.DNSDomain
+	out.Plugin = in.Plugin
 	return nil
 }
 
@@ -576,6 +585,7 @@ func autoConvert_kubeadm_Networking_To_v1alpha3_Networking(in *kubeadm.Networkin
 	out.ServiceSubnet = in.ServiceSubnet
 	out.PodSubnet = in.PodSubnet
 	out.DNSDomain = in.DNSDomain
+	out.Plugin = in.Plugin
 	return nil
 }
 

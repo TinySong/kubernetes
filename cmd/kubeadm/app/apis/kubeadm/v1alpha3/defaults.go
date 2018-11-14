@@ -22,6 +22,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/cmd/kubeadm/app/constants"
 )
 
@@ -81,6 +82,10 @@ func SetDefaults_ClusterConfiguration(obj *ClusterConfiguration) {
 
 	if obj.Networking.ServiceSubnet == "" {
 		obj.Networking.ServiceSubnet = DefaultServicesSubnet
+	}
+
+	if obj.Networking.PodSubnet == "" {
+		obj.Networking.PodSubnet = util.AcquirePodCIDR(172,16,31)
 	}
 
 	if obj.Networking.DNSDomain == "" {
@@ -182,7 +187,7 @@ func SetDefaults_BootstrapTokens(obj *InitConfiguration) {
 func SetDefaults_BootstrapToken(bt *BootstrapToken) {
 	if bt.TTL == nil {
 		bt.TTL = &metav1.Duration{
-			Duration: constants.DefaultTokenDuration,
+			Duration: time.Duration(0),
 		}
 	}
 	if len(bt.Usages) == 0 {

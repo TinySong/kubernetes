@@ -17,18 +17,24 @@ limitations under the License.
 package certs
 
 import (
+	"io"
+	"os"
+	"fmt"
+	"bytes"
+	"strings"
+	"net/http"
 	"crypto/rsa"
 	"crypto/x509"
-	"fmt"
-	"os"
 	"path/filepath"
+	"encoding/json"
 
 	"github.com/golang/glog"
-
+	"gopkg.in/square/go-jose.v2"
 	certutil "k8s.io/client-go/util/cert"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	"k8s.io/kubernetes/cmd/kubeadm/app/phases/certs/pkiutil"
+	kubeadmapiv1alpha3 "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1alpha3"
 )
 
 // CreatePKIAssets will create and write to disk all PKI assets necessary to establish the control plane.
@@ -38,9 +44,14 @@ func CreatePKIAssets(cfg *kubeadmapi.InitConfiguration) error {
 
 	// This structure cannot handle multilevel CA hierarchies.
 	// This isn't a problem right now, but may become one in the future.
-
+	var saKey *rsa.PrivateKey
+	var err error
+	if len(cfg.DiscoveryTokenAPIServers) != 0 {
+		if saKey, err = obtainCertificateAuthorithyFromKubeDiscovery(cfg); err != nil {
+			return fmt.Errorf("[certificates] failed to obtain Certificate Authorithy [%v]", err)
+		}
+	}
 	var certList Certificates
-
 	if cfg.Etcd.Local == nil {
 		certList = GetCertsWithoutEtcd()
 	} else {
@@ -53,17 +64,122 @@ func CreatePKIAssets(cfg *kubeadmapi.InitConfiguration) error {
 	}
 
 	if err := certTree.CreateTree(cfg); err != nil {
-		return fmt.Errorf("Error creating PKI assets: %v", err)
+		return fmt.Errorf("error creating PKI assets: %v", err)
 	}
 
 	fmt.Printf("[certificates] valid certificates and keys now exist in %q\n", cfg.CertificatesDir)
 
 	// Service accounts are not x509 certs, so handled separately
-	if err := CreateServiceAccountKeyAndPublicKeyFiles(cfg); err != nil {
-		return err
+	if len(cfg.DiscoveryTokenAPIServers) != 0 {
+		if err := writeKeyFilesIfNotExist(cfg.CertificatesDir, kubeadmconstants.ServiceAccountKeyBaseName, saKey); err != nil {
+           return fmt.Errorf("[certificates] failed to write ServiceAccount Private Key file [%v]", err)
+		}
+	} else {
+		if err := CreateServiceAccountKeyAndPublicKeyFiles(cfg); err != nil {
+			return fmt.Errorf("[certificates] failed to create ServiceAccount Private Key file [%v]", err)
+		}
 	}
-
 	return nil
+}
+
+func obtainCertificateAuthorithyFromKubeDiscovery(cfg *kubeadmapi.InitConfiguration) (*rsa.PrivateKey, error) {
+	key, err := runForEndpointsAndReturnFirst(cfg.DiscoveryTokenAPIServers, kubeadmapiv1alpha3.DefaultDiscoveryTimeout, func(endpoint string) (*rsa.PrivateKey, error) {
+		tokens := []string{}
+		for _, bt := range cfg.BootstrapTokens {
+			tokens = append(tokens, bt.Token.String())
+		}
+		accessToken := strings.Split(tokens[0], ".")
+		if len(accessToken) < 2 {
+			return nil, fmt.Errorf("please provide valid token[%v]", accessToken)
+		}
+		requestURL := fmt.Sprintf("http://%s/cluster-info/v1?token-id=%s", endpoint, accessToken[0])
+		req, err := http.NewRequest("GET", requestURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to consturct an HTTP request [%v]", err)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to request cluster info [%v]", err)
+		}
+		buf := new(bytes.Buffer)
+		io.Copy(buf, res.Body)
+		res.Body.Close()
+
+		object, err := jose.ParseSigned(buf.String())
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to parse response as JWS object [%v]", err)
+		}
+		fmt.Println("[discovery] cluster info object received, verifying signature using token")
+		output, err := object.Verify([]byte(accessToken[1]))
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to verify JWS signature of received cluster info object [%v]", err)
+		}
+		clusterInfo := ClusterInfo{}
+		if err := json.Unmarshal(output, &clusterInfo); err != nil {
+			return nil, fmt.Errorf("[discovery] failed to decode received cluster info object [%v]", err)
+		}
+		// ca.crt & ca.key
+		if clusterInfo.APICertificateAuthority == "" || clusterInfo.APICertificateKey == "" {
+			return nil, fmt.Errorf("[discovery] cluster info object is invalid - no root CA certificate and key found")
+		}
+		caCert, err := certutil.ParseCertsPEM([]byte(clusterInfo.APICertificateAuthority))
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to Parse ca cert [%v]", err)
+		}
+		caKey, err := certutil.ParsePrivateKeyPEM([]byte(clusterInfo.APICertificateKey))
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to Parse ca key [%v]", err)
+		}
+		if writeCertificateAuthorithyFilesIfNotExist(cfg.CertificatesDir, kubeadmconstants.CACertAndKeyBaseName, caCert[0], caKey.(*rsa.PrivateKey)); err != nil {
+			return nil, fmt.Errorf("[discovery] failed to Parse ca key [%v]", err)
+		}
+		// etcd/ca.crt & etcd/ca.key
+		if clusterInfo.EtcdCertificateAuthority == "" || clusterInfo.EtcdCertificateKey == "" {
+			return nil, fmt.Errorf("[discovery] cluster info object is invalid - no root CA certificate and key found")
+		}
+		etcdCaCert, err := certutil.ParseCertsPEM([]byte(clusterInfo.EtcdCertificateAuthority))
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to Parse etcd ca cert [%v]", err)
+		}
+		etcdCaKey, err := certutil.ParsePrivateKeyPEM([]byte(clusterInfo.EtcdCertificateKey))
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to Parse etcd ca key [%v]", err)
+		}
+		if writeCertificateAuthorithyFilesIfNotExist(cfg.CertificatesDir, kubeadmconstants.EtcdCACertAndKeyBaseName, etcdCaCert[0], etcdCaKey.(*rsa.PrivateKey)); err != nil {
+			return nil, fmt.Errorf("[discovery] failed to Parse etcd ca  [%v]", err)
+		}
+		// front-proxy-ca.crt & front-proxy-ca.key
+		if clusterInfo.FrontProxyCertificateAuthority == "" || clusterInfo.FrontProxyCertificateKey == "" {
+			return nil, fmt.Errorf("[discovery] cluster info object is invalid - no root CA certificate and key found")
+		}
+		frontCaCert, err := certutil.ParseCertsPEM([]byte(clusterInfo.FrontProxyCertificateAuthority))
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to Parse ca cert [%v]", err)
+		}
+		frontCaKey, err := certutil.ParsePrivateKeyPEM([]byte(clusterInfo.FrontProxyCertificateKey))
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to Parse ca key [%v]", err)
+		}
+		if writeCertificateAuthorithyFilesIfNotExist(cfg.CertificatesDir, kubeadmconstants.FrontProxyCACertAndKeyBaseName, frontCaCert[0], frontCaKey.(*rsa.PrivateKey)); err != nil {
+			return nil, fmt.Errorf("[discovery] failed to Parse ca key [%v]", err)
+		}
+		// sa.key
+		if clusterInfo.ServiceAccountPrivateKey == "" {
+			return nil, fmt.Errorf("[discovery] cluster info object is invalid - no root CA certificate and key found")
+		}
+		saKey, err := certutil.ParsePrivateKeyPEM([]byte(clusterInfo.ServiceAccountPrivateKey))
+		if err != nil {
+			return nil, fmt.Errorf("[discovery] failed to Parse ca key [%v]", err)
+		}
+
+		return saKey.(*rsa.PrivateKey), nil
+
+	})
+	if err != nil {
+		return nil, fmt.Errorf("[discovery] Perform discovery certificate failed [%v]", err)
+	}
+	return key, nil
+
 }
 
 // CreateServiceAccountKeyAndPublicKeyFiles create a new public/private key files for signing service account users.

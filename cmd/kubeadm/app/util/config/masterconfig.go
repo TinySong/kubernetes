@@ -19,6 +19,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"time"
 	"io/ioutil"
 	"net"
 	"reflect"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	bootstraputil "k8s.io/client-go/tools/bootstrap/token/util"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	kubeadmscheme "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/scheme"
@@ -65,6 +67,11 @@ func SetBootstrapTokensDynamicDefaults(cfg *[]kubeadmapi.BootstrapToken) error {
 	// because of possible security concerns, and more practically
 	// because we can't return errors in the API object defaulting
 	// process but here we can.
+	if *cfg == nil || len(*cfg) == 0 {
+		bt := &kubeadmapi.BootstrapToken{}
+		SetDefaultsBootstrapToken(bt)
+		*cfg = []kubeadmapi.BootstrapToken{*bt}
+	}
 	for i, bt := range *cfg {
 		if bt.Token != nil && len(bt.Token.String()) > 0 {
 			continue
@@ -82,6 +89,21 @@ func SetBootstrapTokensDynamicDefaults(cfg *[]kubeadmapi.BootstrapToken) error {
 	}
 
 	return nil
+}
+
+func SetDefaultsBootstrapToken(bt *kubeadmapi.BootstrapToken) {
+	if bt.TTL == nil {
+		bt.TTL = &metav1.Duration{
+			Duration: time.Duration(0),
+		}
+	}
+	if len(bt.Usages) == 0 {
+		bt.Usages = kubeadmconstants.DefaultTokenUsages
+	}
+
+	if len(bt.Groups) == 0 {
+		bt.Groups = kubeadmconstants.DefaultTokenGroups
+	}
 }
 
 // SetNodeRegistrationDynamicDefaults checks and sets configuration values for the NodeRegistration object
@@ -181,7 +203,7 @@ func ConfigFileAndDefaultsToInternalConfig(cfgPath string, defaultversionedcfg *
 		kubeadmscheme.Scheme.Convert(defaultversionedcfg, internalcfg, nil)
 	}
 
-	// Applies dynamic defaults to settings not provided with flags
+    // Applies dynamic defaults to settings not provided with flags
 	if err := SetInitDynamicDefaults(internalcfg); err != nil {
 		return nil, err
 	}

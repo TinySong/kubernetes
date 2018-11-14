@@ -49,6 +49,13 @@ func UploadConfiguration(cfg *kubeadmapi.InitConfiguration, client clientset.Int
 	// We don't want to mutate the cfg itself, so create a copy of it using .DeepCopy of it first
 	clusterConfigurationToUpload := cfg.ClusterConfiguration.DeepCopy()
 	clusterConfigurationToUpload.ComponentConfigs = kubeadmapi.ComponentConfigs{}
+	//for security reason remove token form kubeadm-config
+	if len(clusterConfigurationToUpload.BootstrapTokens) != 0{
+         bts,_ := kubeadmapi.NewBootstrapTokenString("xxxxxx.xxxxxxxxxxxxxxxx")
+		 for _, bt := range clusterConfigurationToUpload.BootstrapTokens {
+         	bt.Token = bts
+		 }
+	}
 
 	// Marshal the ClusterConfiguration into YAML
 	clusterConfigurationYaml, err := configutil.MarshalKubeadmConfigObject(clusterConfigurationToUpload)
