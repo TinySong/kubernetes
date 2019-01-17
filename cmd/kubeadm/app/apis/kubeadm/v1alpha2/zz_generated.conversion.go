@@ -432,6 +432,7 @@ func autoConvert_v1alpha2_Networking_To_kubeadm_Networking(in *Networking, out *
 	out.PodSubnet = in.PodSubnet
 	out.DNSDomain = in.DNSDomain
 	out.Plugin = in.Plugin
+	out.Mode = in.Mode
 	return nil
 }
 
@@ -445,6 +446,7 @@ func autoConvert_kubeadm_Networking_To_v1alpha2_Networking(in *kubeadm.Networkin
 	out.PodSubnet = in.PodSubnet
 	out.DNSDomain = in.DNSDomain
 	out.Plugin = in.Plugin
+	out.Mode = in.Mode
 	return nil
 }
 

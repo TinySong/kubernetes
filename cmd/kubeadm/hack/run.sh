@@ -108,19 +108,25 @@ unifiedControlPlaneImage: ${REGISTRY_SERVER}/${REGISTRY_USER}/hyperkube-amd64:${
 EOF
   cp /kubeadm  /tmp/  1>/dev/null 2>&1
   ADVERTISE_ADDRESSES_AGENT=""
-  if [ -n "${ADDRESS}" ]; then
+  if [[ -n "${ADDRESS}" ]]; then
     ADVERTISE_ADDRESSES_AGENT="--advertise-address=${ADDRESS}"
   fi
 
 
   #master ha peer begin
-  if [ -n "${HA_PEER}" ]; then
-    if [ -z "${K8S_TOKEN}" ]; then
+  if [[ -n "${HA_PEER}" ]]; then
+    if [[ -z "${K8S_TOKEN}" ]]; then
        cat <<EOF
 #!/bin/bash
 echo "For HA mode, Please set kubernetes token with parameter --token <tokenstring>"
 EOF
        exit 1
+    fi
+    etcdServers=""
+    if [[ "${NETWORK_MODE}" == "ipv6" ]] || [[ "${NETWORK_MODE}" == "dual-stack" ]]; then
+       etcdServers="http://::1:2379"
+    else
+       etcdServers="http://127.0.0.1:2379"
     fi
 
     cat >> /tmp/init.yaml << EOF
@@ -132,8 +138,8 @@ EOF
     cat >> /tmp/init.yaml << EOF
 discoveryTokenAPIServers:
 EOF
-    local apiserver=${HA_PEER//,/ }
-    local file=$(mktemp /tmp/servers.XXXXXXXX)
+    apiserver=${HA_PEER//,/ }
+    file=$(mktemp /tmp/servers.XXXXXXXX)
     for addr in $apiserver; do
        echo "- $addr:6443" >> $file
     done
@@ -169,12 +175,7 @@ docker run --rm -v /tmp:/tmp --entrypoint cp  ${REGISTRY_SERVER}/${REGISTRY_USER
 rm -rf $(which calicoctl)
 mv /tmp/calicoctl /usr/bin/  >/dev/null
 
-etcdServers = "http://127.0.0.1:2379"
-if [ "${NETWORK_MODE}" == "ipv6" -o "${NETWORK_MODE}" == "dual-stack" ]; then
-   \${etcdServers} = "http://::1:2379"
-if
-
-docker run --net=host -d --cpu-period=100000 --cpu-quota=100000 --memory=100000000 --restart=always  -v /tmp:/tmp  -v /etc/hosts:/etc/hosts -v /etc/kubernetes:/etc/kubernetes  -v /etc/resolv.conf:/etc/resolv.conf   --name agent  ${REGISTRY_SERVER}/${REGISTRY_USER}/agent:${AGENT_VERSION}  --role=master --etcd-servers=\${etcdServers} ${ADVERTISE_ADDRESSES_AGENT} --dns-enable=true --ssl-enable=false >/dev/null
+docker run --net=host -d --cpu-period=100000 --cpu-quota=100000 --memory=100000000 --restart=always  -v /tmp:/tmp  -v /etc/hosts:/etc/hosts -v /etc/kubernetes:/etc/kubernetes  -v /etc/resolv.conf:/etc/resolv.conf   --name agent  ${REGISTRY_SERVER}/${REGISTRY_USER}/agent:${AGENT_VERSION}  --role=master --etcd-servers=${etcdServers} ${ADVERTISE_ADDRESSES_AGENT} --dns-enable=true --ssl-enable=false >/dev/null
 result=\$?
 if [ \${result} -eq 0  ];then
    echo "Kubernetes Enterprise Edition cluster deployed successfully"
@@ -189,8 +190,8 @@ EOF
   fi
 
   #Normal master mode
-  if [ -n "${SERVER_URL}" ] && [ -n "${CREDENTIAL}" ]; then
-    if [ -n "${CLUSTERID}" ]; then
+  if [[ -n "${SERVER_URL}" ]] && [[ -n "${CREDENTIAL}" ]]; then
+    if [[ -n "${CLUSTERID}" ]]; then
        cat >> /tmp/init.yaml << EOF
 apiServerUrl: ${SERVER_URL}
 apiServerCredential: ${CREDENTIAL}
@@ -204,38 +205,44 @@ EOF
     fi
   fi
 
-  if [  -n "${NETWORK_PLUGIN}" -o  -n "${NETWORK_MODE}" -o  -n "${POD_CIDR}" -o -n "${SERVICE_CIDR}" -o -n "${SERVICE_DNS_DOMAIN}" ]; then
+  if [[  -n "${NETWORK_PLUGIN}" ]] || [[  -n "${NETWORK_MODE}" ]] || [[  -n "${POD_CIDR}" ]] || [[ -n "${SERVICE_CIDR}" ]] || [[ -n "${SERVICE_DNS_DOMAIN}" ]]; then
      cat >> /tmp/init.yaml << EOF
 networking:
 EOF
   fi
 
-  if [ -n "${NETWORK_PLUGIN}" ]; then
+  if [[ -n "${NETWORK_PLUGIN}" ]]; then
      cat >> /tmp/init.yaml << EOF
   plugin: ${NETWORK_PLUGIN}
 EOF
   fi
-  if [ -n "${NETWORK_MODE}" ]; then
+  if [[ -n "${NETWORK_MODE}" ]]; then
     cat >> /tmp/init.yaml << EOF
   mode: ${NETWORK_MODE}
 EOF
   fi
-  if [ -n "${POD_CIDR}" ]; then
+  if [[ -n "${POD_CIDR}" ]]; then
     cat >> /tmp/init.yaml << EOF
   podSubnet: ${POD_CIDR}
 EOF
   fi
 
-  if [ -n "${SERVICE_CIDR}" ]; then
+  if [[ -n "${SERVICE_CIDR}" ]]; then
     cat >> /tmp/init.yaml << EOF
   serviceSubnet: ${SERVICE_CIDR}
 EOF
   fi
 
-  if [ -n "${SERVICE_DNS_DOMAIN}" ]; then
+  if [[ -n "${SERVICE_DNS_DOMAIN}" ]]; then
     cat >> /tmp/init.yaml << EOF
   dnsDomain: ${SERVICE_DNS_DOMAIN}
 EOF
+  fi
+  etcdServers=""
+  if [[ "${NETWORK_MODE}" == "ipv6" ]] || [[ "${NETWORK_MODE}" == "dual-stack" ]]; then
+     etcdServers="http://::1:2379"
+  else
+     etcdServers="http://127.0.0.1:2379"
   fi
 
   cat <<EOF
@@ -266,15 +273,9 @@ docker run --rm -v /tmp:/tmp --entrypoint cp  ${REGISTRY_SERVER}/${REGISTRY_USER
 rm -rf $(which calicoctl)
 mv /tmp/calicoctl /usr/bin/  >/dev/null
 
-
-etcdServers = "http://127.0.0.1:2379"
-if [ "${NETWORK_MODE}" == "ipv6" -o "${NETWORK_MODE}" == "dual-stack" ]; then
-   \${etcdServers} = "http://::1:2379"
-if
-
-docker run --net=host -d --cpu-period=100000 --cpu-quota=100000 --memory=100000000 --restart=always -v /tmp:/tmp -v /etc/kubernetes:/etc/kubernetes -v /etc/hosts:/etc/hosts -v /etc/resolv.conf:/etc/resolv.conf --name agent  ${REGISTRY_SERVER}/${REGISTRY_USER}/agent:${AGENT_VERSION} ${ADVERTISE_ADDRESSES_AGENT} --role=master --etcd-servers=\${etcdServers} --dns-enable=true  --ssl-enable=false >/dev/null
+docker run --net=host -d --cpu-period=100000 --cpu-quota=100000 --memory=100000000 --restart=always -v /tmp:/tmp -v /etc/kubernetes:/etc/kubernetes -v /etc/hosts:/etc/hosts -v /etc/resolv.conf:/etc/resolv.conf --name agent  ${REGISTRY_SERVER}/${REGISTRY_USER}/agent:${AGENT_VERSION} ${ADVERTISE_ADDRESSES_AGENT} --role=master --etcd-servers=${etcdServers} --dns-enable=true  --ssl-enable=false >/dev/null
 result=\$?
-if [ \${result} -eq 0  ];then
+if [[ \${result} -eq 0  ]];then
    echo "Kubernetes Enterprise Edition cluster deployed successfully"
 else
    echo "Kubernetes Enterprise Edition cluster deployed  failed!"
@@ -291,11 +292,11 @@ Node() {
   cp /kubeadm  /tmp/ 2>/dev/null
 
   ADVERTISE_ADDRESSES_AGENT=""
-  if [ -n "${ADDRESS}" ]; then
+  if [[ -n "${ADDRESS}" ]]; then
     ADVERTISE_ADDRESSES_AGENT="--advertise-address=${ADDRESS}"
   fi
 
-  if [ -z "${K8S_TOKEN}" ]; then
+  if [[ -z "${K8S_TOKEN}" ]]; then
     cat <<EOF
 #!/bin/bash
 echo "Please set kubernetes token with parameter --token <tokenstring>"
@@ -304,7 +305,7 @@ EOF
   fi
 
   ## loadbalancer node
-  if [ "$ROLE" = "loadbalancer" ]; then
+  if [[ "$ROLE" = "loadbalancer" ]]; then
     cat <<EOF
 #!/bin/bash
 $(welcome)
@@ -316,7 +317,7 @@ result=0
 echo "Deploying loadbalancer..."
 docker run --net=host -d --cpu-period=100000 --cpu-quota=100000 --memory=100000000 --restart=always -v /tmp:/tmp  -v /etc/hosts:/etc/hosts -v /etc/kubernetes:/etc/kubernetes  -v /etc/resolv.conf:/etc/resolv.conf --name agent ${REGISTRY_SERVER}/${REGISTRY_USER}/agent:${AGENT_VERSION}  ${ADVERTISE_ADDRESSES_AGENT} --role=loadbalancer --etcd-servers=https://${MASTER}:2379 --accesstoken=${K8S_TOKEN} --cert-servers=${MASTER} --cert-dir=/etc/kubernetes/pki --dns-enable=false --ssl-enable=true >/dev/null
 result=\$?
-if [ \${result} -eq 0  ];then
+if [[ \${result} -eq 0  ]];then
    echo "Kubernetes Enterprise Edition cluster deployed successfully"
 else
    echo "Kubernetes Enterprise Edition cluster deployed  failed!"
@@ -334,7 +335,7 @@ kind: JoinConfiguration
 token: ${K8S_TOKEN}
 EOF
   ## Normal slave node
-  if [ -z "${CA_CERT_HASH}" ]; then
+  if [[ -z "${CA_CERT_HASH}" ]]; then
       cat <<EOF
 #!/bin/bash
 echo "Please set kubernetes root ca cert hash with parameter --ca-cert-hash sha256:<hash>"
@@ -374,7 +375,7 @@ result=\$?
 rm -rf /tmp/kubeadm > /dev/null 2>&1
 docker run --net=host -d --cpu-period=100000 --cpu-quota=100000 --memory=100000000 --restart=always  -v /tmp:/tmp -v /etc/hosts:/etc/hosts -v /etc/kubernetes:/etc/kubernetes  -v /etc/resolv.conf:/etc/resolv.conf --name agent  ${REGISTRY_SERVER}/${REGISTRY_USER}/agent:${AGENT_VERSION} ${ADVERTISE_ADDRESSES_AGENT} --role=node --etcd-servers=https://${MASTER}:2379 --dns-enable=true --cert-dir=/etc/kubernetes/pki  --accesstoken=${K8S_TOKEN} --cert-servers=${MASTER}  --ssl-enable=true > /dev/null
 result=\$?
-if [ \${result} -eq 0  ];then
+if [[ \${result} -eq 0  ]];then
    echo "Kubernetes Enterprise Edition cluster deployed successfully"
 else
    echo "Kubernetes Enterprise Edition cluster deployed  failed!"
@@ -386,7 +387,7 @@ exit 0
 
 
 # if there's no valid parameter, it will show help message
-if [ "$#" -le 0 ] ; then
+if [[ "$#" -le 0 ]] ; then
   echo -e $(Usage)
   exit 0
 fi
@@ -424,7 +425,7 @@ fi
               ROLE="$2"
               shift 2 ;;
           "Join" )
-              if [ "$#" -le 1 ]; then
+              if [[ "$#" -le 1 ]]; then
                 echo "Please Enter Master Address and Auth Token"
                 exit
               fi
@@ -433,7 +434,7 @@ fi
               exit 0
               shift 3;;
           "Init" )
-              if [ "$#" -gt 1 ]; then
+              if [[ "$#" -gt 1 ]]; then
                 SERVER_URL="$2"
               fi
               Master
