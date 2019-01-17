@@ -8,28 +8,50 @@ package calico
 import (
 	"fmt"
 
-	"k8s.io/api/core/v1"
-	batch "k8s.io/api/batch/v1"
-	rbac "k8s.io/api/rbac/v1"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/client-go/kubernetes/scheme"
-	clientset "k8s.io/client-go/kubernetes"
+	batch "k8s.io/api/batch/v1"
+	"k8s.io/api/core/v1"
+	rbac "k8s.io/api/rbac/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
+	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
+	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
 )
 
-
 func CreateCalicoAddon(cfg *kubeadmapi.InitConfiguration, client clientset.Interface) error {
 	//PHASE 1: create calico node containers
-	nodeConfigMapBytes, err := kubeadmutil.ParseTemplate(NodeConfigMap, nil)
+	var iPAutoDetection, iP6AutoDetection, assignIpv4, assignIpv6 string
+	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode { // ipv6
+		iPAutoDetection = "none"
+		iP6AutoDetection = "autodetect"
+		assignIpv4 = "false"
+		assignIpv6 = "true"
+	} else if cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode { // ipv4 & ipv6
+		iPAutoDetection = "autodetect"
+		iP6AutoDetection = "autodetect"
+		assignIpv4 = "true"
+		assignIpv6 = "true"
+	} else { // ipv4
+		iPAutoDetection = "autodetect"
+		iP6AutoDetection = "none"
+		assignIpv4 = "true"
+		assignIpv6 = "false"
+	}
+	nodeConfigMapBytes, err := kubeadmutil.ParseTemplate(NodeConfigMap, struct{ IPAutoDetection, IP6AutoDetection, AssignIpv4, AssignIpv6 string }{
+		IPAutoDetection:  iPAutoDetection,
+		IP6AutoDetection: iP6AutoDetection,
+		AssignIpv4:       assignIpv4,
+		AssignIpv6:       assignIpv6,
+	})
 	if err != nil {
 		return fmt.Errorf("error when parsing calico cni configmap template: %v", err)
 	}
 	cniDaemonSetBytes, err := kubeadmutil.ParseTemplate(Node, struct{ ImageRepository, Version string }{
 		ImageRepository: cfg.GetControlPlaneImageRepository(),
-		Version: Version,
+		Version:         Version,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing calico cni daemonset template: %v", err)
@@ -40,7 +62,7 @@ func CreateCalicoAddon(cfg *kubeadmapi.InitConfiguration, client clientset.Inter
 	//PHASE 2: create calico kube controllers containers
 	policyControllerDeploymentBytes, err := kubeadmutil.ParseTemplate(KubeController, struct{ ImageRepository, Version string }{
 		ImageRepository: cfg.GetControlPlaneImageRepository(),
-		Version: Version,
+		Version:         Version,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing kube controllers deployment template: %v", err)
@@ -49,17 +71,17 @@ func CreateCalicoAddon(cfg *kubeadmapi.InitConfiguration, client clientset.Inter
 		return err
 	}
 	//PHASE 3: create calico ctl job to configure ip pool
-	ctlConfigMapBytes, err := kubeadmutil.ParseTemplate(CtlConfigMap, struct{ ServiceSubnet,PodSubnet string }{
+	ctlConfigMapBytes, err := kubeadmutil.ParseTemplate(CtlConfigMap, struct{ ServiceSubnet, PodSubnet string }{
 		ServiceSubnet: cfg.Networking.ServiceSubnet,
-		PodSubnet: cfg.Networking.PodSubnet,
+		PodSubnet:     cfg.Networking.PodSubnet,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing calicoctl configmap template: %v", err)
 	}
 
 	ctlJobBytes, err := kubeadmutil.ParseTemplate(CtlJob, struct{ ImageRepository, Version string }{
-		ImageRepository:     cfg.GetControlPlaneImageRepository(),
-		Version: Version,
+		ImageRepository: cfg.GetControlPlaneImageRepository(),
+		Version:         Version,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing calicoctl job template: %v", err)

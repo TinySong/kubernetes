@@ -169,7 +169,12 @@ docker run --rm -v /tmp:/tmp --entrypoint cp  ${REGISTRY_SERVER}/${REGISTRY_USER
 rm -rf $(which calicoctl)
 mv /tmp/calicoctl /usr/bin/  >/dev/null
 
-docker run --net=host -d --cpu-period=100000 --cpu-quota=100000 --memory=100000000 --restart=always  -v /tmp:/tmp  -v /etc/hosts:/etc/hosts -v /etc/kubernetes:/etc/kubernetes  -v /etc/resolv.conf:/etc/resolv.conf   --name agent  ${REGISTRY_SERVER}/${REGISTRY_USER}/agent:${AGENT_VERSION}  --role=master --etcd-servers=http://127.0.0.1:2379 ${ADVERTISE_ADDRESSES_AGENT} --dns-enable=true --ssl-enable=false >/dev/null
+etcdServers = "http://127.0.0.1:2379"
+if [ "${NETWORK_MODE}" == "ipv6" -o "${NETWORK_MODE}" == "dual-stack" ]; then
+   \${etcdServers} = "http://::1:2379"
+if
+
+docker run --net=host -d --cpu-period=100000 --cpu-quota=100000 --memory=100000000 --restart=always  -v /tmp:/tmp  -v /etc/hosts:/etc/hosts -v /etc/kubernetes:/etc/kubernetes  -v /etc/resolv.conf:/etc/resolv.conf   --name agent  ${REGISTRY_SERVER}/${REGISTRY_USER}/agent:${AGENT_VERSION}  --role=master --etcd-servers=\${etcdServers} ${ADVERTISE_ADDRESSES_AGENT} --dns-enable=true --ssl-enable=false >/dev/null
 result=\$?
 if [ \${result} -eq 0  ];then
    echo "Kubernetes Enterprise Edition cluster deployed successfully"
@@ -199,15 +204,20 @@ EOF
     fi
   fi
 
-  if [  -n "${NETWORK}" -o  -n "${POD_CIDR}" -o -n "${SERVICE_CIDR}" -o -n "${SERVICE_DNS_DOMAIN}" ]; then
+  if [  -n "${NETWORK_PLUGIN}" -o  -n "${NETWORK_MODE}" -o  -n "${POD_CIDR}" -o -n "${SERVICE_CIDR}" -o -n "${SERVICE_DNS_DOMAIN}" ]; then
      cat >> /tmp/init.yaml << EOF
 networking:
 EOF
   fi
 
-  if [ -n "${NETWORK}" ]; then
+  if [ -n "${NETWORK_PLUGIN}" ]; then
      cat >> /tmp/init.yaml << EOF
-  plugin: ${NETWORK}
+  plugin: ${NETWORK_PLUGIN}
+EOF
+  fi
+  if [ -n "${NETWORK_MODE}" ]; then
+    cat >> /tmp/init.yaml << EOF
+  mode: ${NETWORK_MODE}
 EOF
   fi
   if [ -n "${POD_CIDR}" ]; then
@@ -256,7 +266,13 @@ docker run --rm -v /tmp:/tmp --entrypoint cp  ${REGISTRY_SERVER}/${REGISTRY_USER
 rm -rf $(which calicoctl)
 mv /tmp/calicoctl /usr/bin/  >/dev/null
 
-docker run --net=host -d --cpu-period=100000 --cpu-quota=100000 --memory=100000000 --restart=always -v /tmp:/tmp -v /etc/kubernetes:/etc/kubernetes -v /etc/hosts:/etc/hosts -v /etc/resolv.conf:/etc/resolv.conf --name agent  ${REGISTRY_SERVER}/${REGISTRY_USER}/agent:${AGENT_VERSION} ${ADVERTISE_ADDRESSES_AGENT} --role=master --etcd-servers=http://127.0.0.1:2379 --dns-enable=true  --ssl-enable=false >/dev/null
+
+etcdServers = "http://127.0.0.1:2379"
+if [ "${NETWORK_MODE}" == "ipv6" -o "${NETWORK_MODE}" == "dual-stack" ]; then
+   \${etcdServers} = "http://::1:2379"
+if
+
+docker run --net=host -d --cpu-period=100000 --cpu-quota=100000 --memory=100000000 --restart=always -v /tmp:/tmp -v /etc/kubernetes:/etc/kubernetes -v /etc/hosts:/etc/hosts -v /etc/resolv.conf:/etc/resolv.conf --name agent  ${REGISTRY_SERVER}/${REGISTRY_USER}/agent:${AGENT_VERSION} ${ADVERTISE_ADDRESSES_AGENT} --role=master --etcd-servers=\${etcdServers} --dns-enable=true  --ssl-enable=false >/dev/null
 result=\$?
 if [ \${result} -eq 0  ];then
    echo "Kubernetes Enterprise Edition cluster deployed successfully"

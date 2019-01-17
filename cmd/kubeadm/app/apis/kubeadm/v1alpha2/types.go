@@ -157,6 +157,9 @@ type Networking struct {
 	DNSDomain string `json:"dnsDomain"`
 
 	Plugin    string `json:"plugin"`
+
+	// Network Mode: ipv4, ipv6, dual-stack
+	Mode      string `json:"mode"`
 }
 
 // BootstrapToken describes one bootstrap token, stored as a Secret in the cluster

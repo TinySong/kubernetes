@@ -138,10 +138,16 @@ func createStaticPodFiles(manifestDir string, cfg *kubeadmapi.InitConfiguration,
 
 // getAPIServerCommand builds the right API server command from the given config object and version
 func getAPIServerCommand(cfg *kubeadmapi.InitConfiguration) []string {
+	var insecureBindAddress string
+	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
+		insecureBindAddress = "::1"
+	} else {
+		insecureBindAddress = "127.0.0.1"
+	}
 	defaultArguments := map[string]string{
 		"advertise-address":               cfg.APIEndpoint.AdvertiseAddress,
 		"insecure-port":                   "8080",
-		"insecure-bind-address":           "127.0.0.1",
+		"insecure-bind-address":           insecureBindAddress,
 		"enable-admission-plugins":        "NodeRestriction,PodSecurityPolicy",
 		"service-cluster-ip-range":        cfg.Networking.ServiceSubnet,
 		"service-account-key-file":        filepath.Join(cfg.CertificatesDir, kubeadmconstants.ServiceAccountPublicKeyName),
@@ -283,8 +289,14 @@ func calcNodeCidrSize(podSubnet string) string {
 
 // getControllerManagerCommand builds the right controller manager command from the given config object and version
 func getControllerManagerCommand(cfg *kubeadmapi.InitConfiguration, k8sVersion *version.Version) []string {
+	var address string
+	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
+		address = "::1"
+	} else {
+		address = "127.0.0.1"
+	}
 	defaultArguments := map[string]string{
-		"address":                          "127.0.0.1",
+		"address":                          address,
 		"leader-elect":                     "true",
 		"kubeconfig":                       filepath.Join(kubeadmconstants.KubernetesDir, kubeadmconstants.ControllerManagerKubeConfigFileName),
 		"root-ca-file":                     filepath.Join(cfg.CertificatesDir, kubeadmconstants.CACertName),
@@ -327,8 +339,14 @@ func getControllerManagerCommand(cfg *kubeadmapi.InitConfiguration, k8sVersion *
 
 // getSchedulerCommand builds the right scheduler command from the given config object and version
 func getSchedulerCommand(cfg *kubeadmapi.InitConfiguration) []string {
+	var address string
+	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
+		address = "::1"
+	} else {
+		address = "127.0.0.1"
+	}
 	defaultArguments := map[string]string{
-		"address":          "127.0.0.1",
+		"address":          address,
 		"leader-elect":     "true",
 		"policy-configmap": "kube-scheduler",
 		"kubeconfig":   filepath.Join(kubeadmconstants.KubernetesDir, kubeadmconstants.SchedulerKubeConfigFileName),

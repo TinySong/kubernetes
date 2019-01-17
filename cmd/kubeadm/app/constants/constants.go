@@ -337,6 +337,12 @@ const (
 
 	// DefaultAPIServerBindAddress is the default bind address for the API Server
 	DefaultAPIServerBindAddress = "0.0.0.0"
+
+	NetworkIPV4Mode  = "ipv4"
+
+	NetworkIPV6Mode  = "ipv6"
+
+	NetworkDualStackMode  = "dual-stack"
 )
 
 var (

@@ -48,9 +48,9 @@ data:
   etcd_cert: "/etc/kubernetes/pki/etcd/client.crt"
   etcd_key: "/etc/kubernetes/pki/etcd/client.key"
   calico_backend: "bird"
-  ip: "autodetect"
+  ip: {{ .IPAutoDetection }}
   ip_autodetection_method: "first-found"
-  ip6: "none"
+  ip6: {{ .IP6AutoDetection }}
   ip6_autodetection_method: "first-found"
   cni_network_config: |-
     {
@@ -66,7 +66,9 @@ data:
             "log_level": "__LOG_LEVEL__",
             "mtu": 1440,
             "ipam": {
-                "type": "calico-ipam"
+                "type": "calico-ipam",
+                "assign_ipv4": {{ .AssignIpv4 }},
+                "assign_ipv6": {{ .AssignIpv6 }}
              },
             "policy": {
                   "type": "k8s"
