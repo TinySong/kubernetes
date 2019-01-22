@@ -46,7 +46,7 @@ type InitConfiguration struct {
 	NodeRegistration NodeRegistrationOptions `json:"nodeRegistration,omitempty"`
 
 	// APIEndpoint represents the endpoint of the instance of the API server to be deployed on this node.
-	APIEndpoint APIEndpoint `json:"apiEndpoint,omitempty"`
+	//APIEndpoint APIEndpoint `json:"apiEndpoint,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -124,6 +124,9 @@ type ClusterConfiguration struct {
 	// BootstrapTokens is respected at `kubeadm init` time and describes a set of Bootstrap Tokens to create.
 	// This information IS NOT uploaded to the kubeadm cluster configmap, partly because of its sensitive nature
 	BootstrapTokens []BootstrapToken `json:"bootstrapTokens,omitempty"`
+
+	// APIEndpoint represents the endpoint of the instance of the API server to be deployed on this node.
+	APIEndpoint APIEndpoint
 
 	// DiscoveryTokenAPIServers is a set of IPs to API servers from which info
 	// will be fetched. Currently we only pay attention to one API server but

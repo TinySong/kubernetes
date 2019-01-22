@@ -67,8 +67,8 @@ data:
             "mtu": 1440,
             "ipam": {
                 "type": "calico-ipam",
-                "assign_ipv4": {{ .AssignIpv4 }},
-                "assign_ipv6": {{ .AssignIpv6 }}
+                "assign_ipv4": "{{ .AssignIpv4 }}",
+                "assign_ipv6": "{{ .AssignIpv6 }}"
              },
             "policy": {
                   "type": "k8s"

@@ -110,6 +110,10 @@ EOF
   ADVERTISE_ADDRESSES_AGENT=""
   if [[ -n "${ADDRESS}" ]]; then
     ADVERTISE_ADDRESSES_AGENT="--advertise-address=${ADDRESS}"
+    cat >> /tmp/init.yaml << EOF
+apiEndpoint:
+  advertiseAddress: ${ADDRESS}
+EOF
   fi
 
 

@@ -308,6 +308,9 @@ func autoConvert_v1alpha3_ClusterConfiguration_To_kubeadm_ClusterConfiguration(i
 	out.FeatureGates = *(*map[string]bool)(unsafe.Pointer(&in.FeatureGates))
 	out.ClusterName = in.ClusterName
 	out.BootstrapTokens = *(*[]kubeadm.BootstrapToken)(unsafe.Pointer(&in.BootstrapTokens))
+	if err := Convert_v1alpha3_APIEndpoint_To_kubeadm_APIEndpoint(&in.APIEndpoint, &out.APIEndpoint, s); err != nil {
+		return err
+	}
 	out.DiscoveryTokenAPIServers = *(*[]string)(unsafe.Pointer(&in.DiscoveryTokenAPIServers))
 	out.ApiServerUrl = in.ApiServerUrl
 	out.ApiServerCredential = in.ApiServerCredential
@@ -342,6 +345,9 @@ func autoConvert_kubeadm_ClusterConfiguration_To_v1alpha3_ClusterConfiguration(i
 	out.FeatureGates = *(*map[string]bool)(unsafe.Pointer(&in.FeatureGates))
 	out.ClusterName = in.ClusterName
 	out.BootstrapTokens = *(*[]BootstrapToken)(unsafe.Pointer(&in.BootstrapTokens))
+	if err := Convert_kubeadm_APIEndpoint_To_v1alpha3_APIEndpoint(&in.APIEndpoint, &out.APIEndpoint, s); err != nil {
+		return err
+	}
 	out.DiscoveryTokenAPIServers = *(*[]string)(unsafe.Pointer(&in.DiscoveryTokenAPIServers))
 	out.ApiServerUrl = in.ApiServerUrl
 	out.ApiServerCredential = in.ApiServerCredential
@@ -457,9 +463,6 @@ func autoConvert_v1alpha3_InitConfiguration_To_kubeadm_InitConfiguration(in *Ini
 	if err := Convert_v1alpha3_NodeRegistrationOptions_To_kubeadm_NodeRegistrationOptions(&in.NodeRegistration, &out.NodeRegistration, s); err != nil {
 		return err
 	}
-	if err := Convert_v1alpha3_APIEndpoint_To_kubeadm_APIEndpoint(&in.APIEndpoint, &out.APIEndpoint, s); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -473,9 +476,6 @@ func autoConvert_kubeadm_InitConfiguration_To_v1alpha3_InitConfiguration(in *kub
 		return err
 	}
 	if err := Convert_kubeadm_NodeRegistrationOptions_To_v1alpha3_NodeRegistrationOptions(&in.NodeRegistration, &out.NodeRegistration, s); err != nil {
-		return err
-	}
-	if err := Convert_kubeadm_APIEndpoint_To_v1alpha3_APIEndpoint(&in.APIEndpoint, &out.APIEndpoint, s); err != nil {
 		return err
 	}
 	return nil

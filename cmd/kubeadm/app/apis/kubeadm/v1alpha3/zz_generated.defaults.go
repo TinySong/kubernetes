@@ -41,6 +41,7 @@ func SetObjectDefaults_ClusterConfiguration(in *ClusterConfiguration) {
 		a := &in.BootstrapTokens[i]
 		SetDefaults_BootstrapToken(a)
 	}
+	SetDefaults_APIEndpoint(&in.APIEndpoint)
 }
 
 func SetObjectDefaults_ClusterStatus(in *ClusterStatus) {
@@ -50,7 +51,6 @@ func SetObjectDefaults_InitConfiguration(in *InitConfiguration) {
 	SetDefaults_InitConfiguration(in)
 	SetObjectDefaults_ClusterConfiguration(&in.ClusterConfiguration)
 	SetDefaults_NodeRegistrationOptions(&in.NodeRegistration)
-	SetDefaults_APIEndpoint(&in.APIEndpoint)
 }
 
 func SetObjectDefaults_JoinConfiguration(in *JoinConfiguration) {

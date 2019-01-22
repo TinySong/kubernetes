@@ -181,6 +181,7 @@ func (in *ClusterConfiguration) DeepCopyInto(out *ClusterConfiguration) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	out.APIEndpoint = in.APIEndpoint
 	if in.DiscoveryTokenAPIServers != nil {
 		in, out := &in.DiscoveryTokenAPIServers, &out.DiscoveryTokenAPIServers
 		*out = make([]string, len(*in))
@@ -308,7 +309,6 @@ func (in *InitConfiguration) DeepCopyInto(out *InitConfiguration) {
 	out.TypeMeta = in.TypeMeta
 	in.ClusterConfiguration.DeepCopyInto(&out.ClusterConfiguration)
 	in.NodeRegistration.DeepCopyInto(&out.NodeRegistration)
-	out.APIEndpoint = in.APIEndpoint
 	return
 }
 

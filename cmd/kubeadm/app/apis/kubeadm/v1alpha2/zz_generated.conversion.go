@@ -354,7 +354,6 @@ func autoConvert_kubeadm_InitConfiguration_To_v1alpha2_InitConfiguration(in *kub
 	if err := Convert_kubeadm_NodeRegistrationOptions_To_v1alpha2_NodeRegistrationOptions(&in.NodeRegistration, &out.NodeRegistration, s); err != nil {
 		return err
 	}
-	// WARNING: in.APIEndpoint requires manual conversion: does not exist in peer-type
 	return nil
 }
 

@@ -89,13 +89,13 @@ func GetEtcdPodSpec(cfg *kubeadmapi.InitConfiguration) v1.Pod {
 
 // getEtcdCommand builds the right etcd command from the given config object
 func getEtcdCommand(cfg *kubeadmapi.InitConfiguration) []string {
-	var address string
+	var loopback string
 	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
-		address = "::1"
+		loopback = "[::1]"
 	} else {
-		address = "127.0.0.1"
+		loopback = "127.0.0.1"
 	}
-	advertiseAddr := address
+	advertiseAddr := loopback
 	if len(cfg.APIEndpoint.AdvertiseAddress) > 0 {
 		advertiseAddr = cfg.APIEndpoint.AdvertiseAddress
 	}
@@ -176,8 +176,8 @@ func getEtcdCommand(cfg *kubeadmapi.InitConfiguration) []string {
 
 		"initial-advertise-peer-urls": "https://" + advertiseAddr + ":2380",
 		"listen-peer-urls":            "https://" + advertiseAddr + ":2380",
-		"listen-client-urls":          "https://" + advertiseAddr + ":2379,http://" + address + ":2379",
-		"advertise-client-urls":       "https://" + advertiseAddr + ":2379,http://" + address + ":2379",
+		"listen-client-urls":          "https://" + advertiseAddr + ":2379,http://" + loopback + ":2379",
+		"advertise-client-urls":       "https://" + advertiseAddr + ":2379,http://" + loopback + ":2379",
 		"initial-cluster-token":       "k8s",
 		"initial-cluster":             initialCluster,
 		"initial-cluster-state":       initialClusterState,

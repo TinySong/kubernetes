@@ -49,7 +49,7 @@ type InitConfiguration struct {
 	NodeRegistration NodeRegistrationOptions
 
 	// APIEndpoint represents the endpoint of the instance of the API server to be deployed on this node.
-	APIEndpoint APIEndpoint
+	//APIEndpoint APIEndpoint
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -136,6 +136,9 @@ type ClusterConfiguration struct {
 
 	// BootstrapTokens is respected at `kubeadm init` time and describes a set of Bootstrap Tokens to create.
 	BootstrapTokens []BootstrapToken
+
+	// APIEndpoint represents the endpoint of the instance of the API server to be deployed on this node.
+	APIEndpoint APIEndpoint
 
 	DiscoveryTokenAPIServers []string
 
