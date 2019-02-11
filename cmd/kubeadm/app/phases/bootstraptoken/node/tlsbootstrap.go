@@ -121,10 +121,15 @@ func AllowUserGroupKubernetesIn(client clientset.Interface) error {
 	if err != nil {
 		return fmt.Errorf("unable to get cluster-admin clusterrolebinding %v", err)
 	}
-	mastersGroup := rbac.Subject{
+	//mastersGroup := rbac.Subject{
+	//	APIGroup: rbac.GroupName,
+	//	Kind:     "Group",
+	//	Name:     constants.MastersGroup,
+	//}
+	bootstrappers := rbac.Subject{
 		APIGroup: rbac.GroupName,
 		Kind:     "Group",
-		Name:     constants.MastersGroup,
+		Name:     constants.NodeBootstrapTokenAuthGroup,
 	}
 	nodesGroup := rbac.Subject{
 		APIGroup: rbac.GroupName,
@@ -136,7 +141,7 @@ func AllowUserGroupKubernetesIn(client clientset.Interface) error {
 		Kind:     "Group",
 		Name:     "kubernetes",
 	}
-	clusterAdminBinding.Subjects = append(clusterAdminBinding.Subjects,mastersGroup,nodesGroup, kubernetes)
+	clusterAdminBinding.Subjects = append(clusterAdminBinding.Subjects,bootstrappers,nodesGroup, kubernetes)
 	_, err = client.RbacV1().ClusterRoleBindings().Update(clusterAdminBinding)
 	if err != nil {
 		return fmt.Errorf("unable to update cluster-admin clusterrolebinding %v", err)
