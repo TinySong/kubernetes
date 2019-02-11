@@ -128,7 +128,9 @@ EOF
     fi
     etcdServers=""
     if [[ "${NETWORK_MODE}" == "ipv6" ]] || [[ "${NETWORK_MODE}" == "dual-stack" ]]; then
-       etcdServers="http://::1:2379"
+       # etcdServers="http://[::1]:2379"
+       # TODO: FIXME support ipv6 only
+       etcdServers="http://127.0.0.1:2379"
     else
        etcdServers="http://127.0.0.1:2379"
     fi
@@ -244,7 +246,9 @@ EOF
   fi
   etcdServers=""
   if [[ "${NETWORK_MODE}" == "ipv6" ]] || [[ "${NETWORK_MODE}" == "dual-stack" ]]; then
-     etcdServers="http://::1:2379"
+     # etcdServers="http://[::1]:2379"
+     # TODO: FIXME support ipv6 only
+     etcdServers="http://127.0.0.1:2379"
   else
      etcdServers="http://127.0.0.1:2379"
   fi

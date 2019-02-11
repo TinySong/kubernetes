@@ -91,7 +91,9 @@ func GetEtcdPodSpec(cfg *kubeadmapi.InitConfiguration) v1.Pod {
 func getEtcdCommand(cfg *kubeadmapi.InitConfiguration) []string {
 	var loopback string
 	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
-		loopback = "[::1]"
+		//loopback = "[::1]"
+		//TODO: FIXME when ipv6 only
+		loopback = "127.0.0.1"
 	} else {
 		loopback = "127.0.0.1"
 	}

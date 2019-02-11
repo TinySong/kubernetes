@@ -419,23 +419,24 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ippool
+  name: {{ .Name }}
   namespace: kube-system
   labels:
-    networking.projectcalico.org/name: default
+    networking.projectcalico.org/name: {{ .Name }}
   annotations:
     networking.kubernetes.io/pod-cidr: {{ .PodSubnet }}
     networking.kubernetes.io/service-cidr: {{ .ServiceSubnet }}
     networking.projectcalico.org/cidr: {{ .PodSubnet }}
-    networking.projectcalico.org/name: default
+    networking.projectcalico.org/name: {{ .Name }}
 data:
   ippool.yaml: |-
     apiVersion: projectcalico.org/v3
     kind: IPPool
     metadata:
-      name: default
+      name: {{ .Name }}
     spec:
       cidr: {{ .PodSubnet }}
+      ipipMode: Never
       natOutgoing: true
 `
 
@@ -444,8 +445,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   labels:
-    k8s-app: calico
-  name: configure-calico
+    k8s-app: {{ .Name }}
+  name: configure-{{ .Name }}
   namespace: kube-system
 spec:
   completions: 1
@@ -453,7 +454,7 @@ spec:
   template:
     metadata:
       labels:
-        k8s-app: calico
+        k8s-app: {{ .Name }}
     spec:
       containers:
       - args:
@@ -484,7 +485,7 @@ spec:
           items:
           - key: ippool.yaml
             path: calico/ippool.yaml
-          name: ippool
+          name: {{ .Name }}
         name: config-volume
 `
 	// for calico/node

@@ -16,6 +16,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
+	kubeadmapiv1alpha3 "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1alpha3"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
@@ -71,23 +72,21 @@ func CreateCalicoAddon(cfg *kubeadmapi.InitConfiguration, client clientset.Inter
 		return err
 	}
 	//PHASE 3: create calico ctl job to configure ip pool
-	ctlConfigMapBytes, err := kubeadmutil.ParseTemplate(CtlConfigMap, struct{ ServiceSubnet, PodSubnet string }{
-		ServiceSubnet: cfg.Networking.ServiceSubnet,
-		PodSubnet:     cfg.Networking.PodSubnet,
-	})
-	if err != nil {
-		return fmt.Errorf("error when parsing calicoctl configmap template: %v", err)
-	}
-
-	ctlJobBytes, err := kubeadmutil.ParseTemplate(CtlJob, struct{ ImageRepository, Version string }{
-		ImageRepository: cfg.GetControlPlaneImageRepository(),
-		Version:         Version,
-	})
-	if err != nil {
-		return fmt.Errorf("error when parsing calicoctl job template: %v", err)
-	}
-	if err := createCalicoCtl(ctlJobBytes, ctlConfigMapBytes, client); err != nil {
-		return err
+	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode { // ipv6
+		if err := createCalicoIPPool(kubeadmapiv1alpha3.DefaultServicesIpv6Subnet,kubeadmapiv1alpha3.DefaultPodIpv6Subnet,"default-ipv6pool",cfg.GetControlPlaneImageRepository(), client); err != nil {
+			return err
+		}
+	} else if cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode { // ipv4 & ipv6
+		if err := createCalicoIPPool(kubeadmapiv1alpha3.DefaultServicesIpv6Subnet,kubeadmapiv1alpha3.DefaultPodIpv6Subnet,"default-ipv6pool",cfg.GetControlPlaneImageRepository(), client); err != nil {
+			return err
+		}
+		if err := createCalicoIPPool(cfg.Networking.ServiceSubnet,cfg.Networking.PodSubnet,"default-ipv4pool",cfg.GetControlPlaneImageRepository(), client); err != nil {
+			return err
+		}
+	} else {
+		if err := createCalicoIPPool(cfg.Networking.ServiceSubnet,cfg.Networking.PodSubnet,"default-ipv4pool",cfg.GetControlPlaneImageRepository(), client); err != nil {
+			return err
+		}
 	}
 	fmt.Println("[addons] Applied essential addon: calico")
 	return nil
@@ -208,4 +207,28 @@ func createCalicoCtl(JobBytes, configMapBytes []byte, client clientset.Interface
 		return fmt.Errorf("unable to decode calicoctl Job %v", err)
 	}
 	return apiclient.CreateOrUpdateJob(client, job)
+}
+
+func createCalicoIPPool(serviceSubnet,podSubnet,name,imageRepository string, client clientset.Interface) error {
+	ctlConfigMapBytes, err := kubeadmutil.ParseTemplate(CtlConfigMap, struct{ ServiceSubnet, PodSubnet, Name string }{
+		ServiceSubnet: serviceSubnet,
+		PodSubnet:     podSubnet,
+		Name:          name,
+	})
+	if err != nil {
+		return fmt.Errorf("error when parsing calicoctl configmap template: %v", err)
+	}
+
+	ctlJobBytes, err := kubeadmutil.ParseTemplate(CtlJob, struct{ ImageRepository, Version, Name string }{
+		ImageRepository: imageRepository,
+		Version:         Version,
+		Name:            name,
+	})
+	if err != nil {
+		return fmt.Errorf("error when parsing calicoctl job template: %v", err)
+	}
+	if err := createCalicoCtl(ctlJobBytes, ctlConfigMapBytes, client); err != nil {
+		return err
+	}
+	return nil
 }

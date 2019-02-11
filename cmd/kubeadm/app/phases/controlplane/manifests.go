@@ -140,7 +140,9 @@ func createStaticPodFiles(manifestDir string, cfg *kubeadmapi.InitConfiguration,
 func getAPIServerCommand(cfg *kubeadmapi.InitConfiguration) []string {
 	var insecureBindAddress string
 	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
-		insecureBindAddress = "::1"
+		//insecureBindAddress = "::1"
+		//TODO: FIXME when ipv6 only
+		insecureBindAddress = "127.0.0.1"
 	} else {
 		insecureBindAddress = "127.0.0.1"
 	}
@@ -291,7 +293,9 @@ func calcNodeCidrSize(podSubnet string) string {
 func getControllerManagerCommand(cfg *kubeadmapi.InitConfiguration, k8sVersion *version.Version) []string {
 	var address string
 	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
-		address = "::1"
+		//address = "::1"
+		//TODO: FIXME when ipv6 only
+		address = "127.0.0.1"
 	} else {
 		address = "127.0.0.1"
 	}
@@ -341,7 +345,9 @@ func getControllerManagerCommand(cfg *kubeadmapi.InitConfiguration, k8sVersion *
 func getSchedulerCommand(cfg *kubeadmapi.InitConfiguration) []string {
 	var address string
 	if cfg.Networking.Mode == kubeadmconstants.NetworkIPV6Mode || cfg.Networking.Mode == kubeadmconstants.NetworkDualStackMode {
-		address = "::1"
+		//address = "::1"
+		//TODO: FIXME when ipv6 only
+		address = "127.0.0.1"
 	} else {
 		address = "127.0.0.1"
 	}

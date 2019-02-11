@@ -85,19 +85,11 @@ func SetDefaults_ClusterConfiguration(obj *ClusterConfiguration) {
 	}
 
 	if obj.Networking.ServiceSubnet == "" {
-		if obj.Networking.Mode == constants.NetworkIPV6Mode || obj.Networking.Mode == constants.NetworkDualStackMode {
-			obj.Networking.ServiceSubnet = DefaultServicesIpv6Subnet
-		} else {
-			obj.Networking.ServiceSubnet = DefaultServicesSubnet
-		}
+		obj.Networking.ServiceSubnet = DefaultServicesSubnet
 	}
 
 	if obj.Networking.PodSubnet == "" {
-		if obj.Networking.Mode == constants.NetworkIPV6Mode || obj.Networking.Mode == constants.NetworkDualStackMode {
-			obj.Networking.PodSubnet = DefaultPodIpv6Subnet
-		} else {
-			obj.Networking.PodSubnet = util.AcquirePodCIDR(172,16,31)
-		}
+		obj.Networking.PodSubnet = util.AcquirePodCIDR(172,16,31)
 	}
 
 	if obj.Networking.DNSDomain == "" {
