@@ -23,9 +23,10 @@ const (
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
+  name: default
   annotations:
     seccomp.security.alpha.kubernetes.io/allowedProfileNames: '*'
-  name: default
+    users/annotations: "1. Allow all Capabilities; 2. Allow the use of commonly used volumes; 3. Prohibition of privilege pod"
 spec:
   privileged: false
   allowPrivilegeEscalation: false
@@ -60,6 +61,7 @@ metadata:
   name: system
   annotations:
     seccomp.security.alpha.kubernetes.io/allowedProfileNames: '*'
+    users/annotations: "system PodSecurityPolicy for Kubernetes cluster,Don't change it unless you know what you're doing."
 spec:
   privileged: true
   allowPrivilegeEscalation: true
