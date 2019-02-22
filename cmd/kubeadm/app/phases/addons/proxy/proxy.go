@@ -34,7 +34,6 @@ import (
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/apiclient"
 	rbachelper "k8s.io/kubernetes/pkg/apis/rbac/v1"
-	ipvs "k8s.io/kubernetes/pkg/proxy/apis/config"
 )
 
 const (
@@ -59,9 +58,9 @@ func EnsureProxyAddon(cfg *kubeadmapi.InitConfiguration, client clientset.Interf
 	//}
 	masterEndpoint := fmt.Sprintf("https://kubernetes.%s:%d",cfg.Networking.DNSDomain,cfg.APIEndpoint.BindPort)
 	// inCluster set ipvs default
-    if cfg.ComponentConfigs.KubeProxy.Mode == "" {
-		cfg.ComponentConfigs.KubeProxy.Mode = ipvs.ProxyModeIPVS
-	}
+    //if cfg.ComponentConfigs.KubeProxy.Mode == "" {
+	//	cfg.ComponentConfigs.KubeProxy.Mode = ipvs.ProxyModeIPVS
+	//}
 	proxyBytes, err := componentconfigs.Known[componentconfigs.KubeProxyConfigurationKind].Marshal(cfg.ComponentConfigs.KubeProxy)
 	if err != nil {
 		return fmt.Errorf("error when marshaling: %v", err)
