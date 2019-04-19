@@ -409,8 +409,6 @@ spec:
               configMapKeyRef:
                 name: canal-config
                 key: etcd_cert
-          - name: KUBECONFIG
-            value: /etc/kubernetes/kubelet.conf
           - name: ENABLED_CONTROLLERS
             value: policy,namespace,workloadendpoint,node,serviceaccount
           - name: LOG_LEVEL
