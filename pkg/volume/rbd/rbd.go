@@ -24,7 +24,7 @@ import (
 	dstrings "strings"
 
 	"github.com/golang/glog"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -72,6 +72,7 @@ const (
 	rbdDefaultAdminSecretNamespace = "default"
 	rbdDefaultPool                 = "rbd"
 	rbdDefaultUserId               = rbdDefaultAdminId
+	fsTypeLabelOnPVC               = "system/fsType"
 )
 
 func getPath(uid types.UID, volName string, host volume.VolumeHost) string {
@@ -362,6 +363,7 @@ func (plugin *rbdPlugin) ConstructVolumeSpec(volumeName, mountPath string) (*vol
 	mounter := plugin.host.GetMounter(plugin.GetPluginName())
 	pluginDir := plugin.host.GetPluginDir(plugin.GetPluginName())
 	sourceName, err := mounter.GetDeviceNameFromMount(mountPath, pluginDir)
+	glog.Infof("ConstructVolumeSpec sourceName: %s", sourceName)
 	if err != nil {
 		return nil, err
 	}
@@ -638,6 +640,11 @@ func (r *rbdVolumeProvisioner) Provision(selectedNode *v1.Node, allowedTopologie
 		default:
 			return nil, fmt.Errorf("invalid option %q for volume plugin %s", k, r.plugin.GetPluginName())
 		}
+	}
+
+	// if fstype in pvc not equal fstype in storageClass, using pvcs's fstype instead
+	if r.options.PVC.Labels[fsTypeLabelOnPVC] != "" && r.options.PVC.Labels[fsTypeLabelOnPVC] != fstype {
+		fstype = r.options.PVC.Labels["system/fsType"]
 	}
 	// sanity check
 	if imageFormat != rbdImageFormat1 && imageFormat != rbdImageFormat2 {
